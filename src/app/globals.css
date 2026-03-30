@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --bg-card: #1a1a2e;
+  --bg-card-hover: #22223a;
+  --border-color: #2a2a3e;
+  --text-primary: #e8e8f0;
+  --text-secondary: #8888a0;
+  --accent-red: #FF6B6B;
+  --accent-teal: #4ECDC4;
+  --accent-blue: #667eea;
+  --accent-purple: #764ba2;
+}
+
+@theme inline {
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+/* Glass morphism card */
+.glass-card {
+  background: rgba(26, 26, 46, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+/* Glow effects */
+.glow-red { box-shadow: 0 0 20px rgba(255, 107, 107, 0.15); }
+.glow-teal { box-shadow: 0 0 20px rgba(78, 205, 196, 0.15); }
+.glow-blue { box-shadow: 0 0 20px rgba(102, 126, 234, 0.15); }
+
+/* Pulse animation */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Live event feed animation */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.live-event-item { animation: slideIn 0.3s ease-out; }
+
+/* Vote bar animation */
+@keyframes growBar { from { width: 0; } }
+.vote-bar { animation: growBar 0.8s ease-out; }
+
+/* Status indicator */
+.status-working { background: #4ade80; box-shadow: 0 0 8px rgba(74, 222, 128, 0.5); }
+.status-idle { background: var(--text-secondary); }
+.status-reviewing { background: #fbbf24; box-shadow: 0 0 8px rgba(251, 191, 36, 0.5); }
