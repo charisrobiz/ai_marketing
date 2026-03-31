@@ -41,14 +41,13 @@ async function generatePlan(
   campaign: Campaign,
   store: StoreActions
 ): Promise<DailyPlan[]> {
-  // 하나(본부장)가 작업 지시
+  // 하나(본부장) 니치밴딩 전략 브리핑
   store.updateAgentStatus('hana', 'working');
-  store.addLiveEvent(createEvent('hana', '하나', 'system', `"${campaign.productInfo.name}" 캠페인을 시작합니다. 민서님, 30일 마케팅 플랜 수립 부탁드립니다.`));
+  store.addLiveEvent(createEvent('hana', '하나', 'system', `"${campaign.productInfo.name}" 니치밴딩 캠페인을 시작합니다. 민서님, 니치 발견→진입→장악→확장 기반 30일 플랜 부탁드립니다.`));
   await delay(400);
 
-  // 민서(전략가)가 플랜 생성
   store.updateAgentStatus('minseo', 'working');
-  store.addLiveEvent(createEvent('minseo', '민서', 'plan', `네, 본부장님! "${campaign.productInfo.name}" 플랜 생성을 시작합니다.`));
+  store.addLiveEvent(createEvent('minseo', '민서', 'plan', `네, 본부장님! 니치밴딩 프레임워크로 극도의 세분화 타겟 기반 플랜 생성합니다.`));
 
   await delay(500);
 
@@ -63,10 +62,10 @@ async function generatePlan(
       status: 'pending' as const,
     }));
 
-    store.addLiveEvent(createEvent('minseo', '민서', 'plan', `30일 플랜 생성 완료! ${validPlans.length}일치 플랜이 준비되었습니다. (${response.model})`));
+    store.addLiveEvent(createEvent('minseo', '민서', 'plan', `니치밴딩 30일 플랜 완료! ${validPlans.length}일치 - 니치 발견→진입→장악→확장 구조입니다. (${response.model})`));
     store.updateAgentStatus('minseo', 'completed');
     store.updateAgentStatus('hana', 'reviewing');
-    store.addLiveEvent(createEvent('hana', '하나', 'plan', `민서님 플랜 검토 완료. 훌륭합니다! 다음 단계로 진행하겠습니다.`));
+    store.addLiveEvent(createEvent('hana', '하나', 'plan', `니치밴딩 플랜 검토 완료. 세분화 타겟팅 훌륭합니다! 다음 단계로 진행하겠습니다.`));
 
     return validPlans;
   } catch (error) {

@@ -58,32 +58,36 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   const productInfo: ProductInfo = JSON.parse(campaign.product_info as string);
   const settings = getSettings();
 
-  // === 하나(본부장) 브리핑 ===
-  addEvent(campaignId, 'hana', '하나', 'chat', `안녕하세요 팀 여러분! "${productInfo.name}" 캠페인 킥오프 미팅을 시작하겠습니다.`);
-  addEvent(campaignId, 'hana', '하나', 'chat', `제품 카테고리는 "${productInfo.category}"이고, 핵심 차별점은 "${productInfo.uniqueValue || productInfo.description}"입니다.`);
-  addEvent(campaignId, 'hana', '하나', 'chat', `오늘 목표: 30일 마케팅 플랜 수립 → 크리에이티브 소재 생성 → 100인 심사위원 투표까지 완료합니다.`);
+  // === 하나(본부장) 니치밴딩 브리핑 ===
+  addEvent(campaignId, 'hana', '하나', 'chat', `팀 여러분, "${productInfo.name}" 캠페인 킥오프 미팅을 시작합니다!`);
+  addEvent(campaignId, 'hana', '하나', 'chat', `이번 캠페인은 니치밴딩(Niche Banding) 전략으로 진행합니다. 핵심 원칙을 다시 한번 공유드릴게요.`);
+  addEvent(campaignId, 'hana', '하나', 'chat', `니치밴딩 5원칙: 1)극도의 세분화 2)깊이>넓이 3)커뮤니티 중심 성장 4)권위 구축 5)볼링핀 확장 전략`);
+  addEvent(campaignId, 'hana', '하나', 'chat', `"${productInfo.targetAudience || '타겟 미정'}"을 더 깊이 세분화해서, 이 제품이 "없으면 안 되는" 핵심 니치를 찾아야 합니다.`);
+  addEvent(campaignId, 'hana', '하나', 'chat', `차별점은 "${productInfo.uniqueValue || productInfo.description}"입니다. 대중에게 무난한 게 아니라, 소수에게 필수적인 포지셔닝으로 가겠습니다.`);
 
-  // 팀원 반응
-  addEvent(campaignId, 'minseo', '민서', 'chat', `네 본부장님! 타겟 고객 "${productInfo.targetAudience || '미정'}" 기반으로 30일 플랜 바로 잡겠습니다.`);
-  addEvent(campaignId, 'jiwoo', '지우', 'chat', `SEO 키워드 리서치부터 시작할게요. 앱스토어 최적화도 함께 진행합니다.`);
-  addEvent(campaignId, 'yuna', '유나', 'chat', `비주얼 무드보드 준비하고 있겠습니다. 민서님 전략 나오면 바로 디자인 들어갈게요!`);
-  addEvent(campaignId, 'siwon', '시원', 'chat', `시스템 파이프라인 준비 완료. 언제든 가동 가능합니다.`);
-  addEvent(campaignId, 'eunji', '은지', 'chat', `데이터 수집/분석 대시보드 세팅 완료했습니다.`);
+  // 팀원 니치밴딩 관점 반응
+  addEvent(campaignId, 'minseo', '민서', 'chat', `네 본부장님! 니치밴딩 1단계(니치 발견)부터 시작하겠습니다. "${productInfo.targetAudience || '타겟'}"을 행동/가치관 기준으로 극도 세분화할게요.`);
+  addEvent(campaignId, 'jiwoo', '지우', 'chat', `니치 롱테일 키워드 리서치 들어갑니다. 대형 키워드 대신 경쟁 낮고 전환율 높은 니치 키워드 잡겠습니다!`);
+  addEvent(campaignId, 'yuna', '유나', 'chat', `니치 서브컬처 코드 분석 시작합니다. 안티-제네릭 디자인으로 "이건 우리를 위한 것"이라고 느끼게 만들겠습니다!`);
+  addEvent(campaignId, 'doha', '도하', 'chat', `니치 감성 숏폼 콘텐츠 기획할게요. 유나님 비주얼 코드 나오면 바로 모션으로 확장합니다.`);
+  addEvent(campaignId, 'taeyang', '태양', 'chat', `니치 타겟 리타겟팅 세팅 준비합니다. 넓은 타겟 광고 대신 니치 관심사 기반 마이크로 세그먼트로 가겠습니다!`);
+  addEvent(campaignId, 'siwon', '시원', 'chat', `파이프라인 준비 완료. 니치 커뮤니티 데이터 수집 자동화도 세팅하겠습니다.`);
+  addEvent(campaignId, 'eunji', '은지', 'chat', `니치 세그먼트별 반응 분석 대시보드 세팅 완료했습니다!`);
 
-  // === 업무 할당 ===
-  addEvent(campaignId, 'hana', '하나', 'system', `업무를 할당합니다. 각자 확인해주세요!`);
+  // === 업무 할당 (니치밴딩 기반) ===
+  addEvent(campaignId, 'hana', '하나', 'system', `니치밴딩 전략 기반 업무를 할당합니다. 모든 작업에 니치밴딩 원칙을 적용해주세요!`);
 
-  const taskPlan = addTask(campaignId, 'minseo', '민서', '30일 마케팅 플랜 수립', '채널별 전략, 일단위 목표, A/B 테스트 포인트 포함', 'in_progress');
-  const taskSeo = addTask(campaignId, 'jiwoo', '지우', 'SEO 키워드 분석 & 최적화 카피', '검색 키워드 리서치, ASO 최적화, SEO 카피 작성', 'pending');
-  const taskVisual = addTask(campaignId, 'yuna', '유나', '크리에이티브 비주얼 컨셉', '광고 이미지 컨셉, 브랜드 컬러, 이미지 프롬프트 작성', 'pending');
-  const taskMotion = addTask(campaignId, 'doha', '도하', '숏폼 영상 소재 기획', '틱톡/릴스용 모션 그래픽 컨셉, 편집 방향', 'pending');
-  const taskPerf = addTask(campaignId, 'taeyang', '태양', '광고 세팅 & A/B 테스트 준비', 'Meta/Google 광고 캠페인 구조 설계, 타겟 세그먼트', 'pending');
-  const taskData = addTask(campaignId, 'eunji', '은지', '심사위원 투표 분석 시스템', '100인 AI 심사위원 투표 집계 및 인사이트 도출', 'pending');
-  const taskDev = addTask(campaignId, 'siwon', '시원', 'AI 파이프라인 운영', 'LLM API 연동, 데이터 수집 자동화', 'in_progress');
+  const taskPlan = addTask(campaignId, 'minseo', '민서', '니치밴딩 30일 플랜 수립', '니치 발견→진입→장악→확장 4단계 기반, 극도의 세분화 타겟팅, 볼링핀 전략', 'in_progress');
+  const taskSeo = addTask(campaignId, 'jiwoo', '지우', '니치 롱테일 키워드 & SEO 카피', '니치 롱테일 키워드 리서치, 토픽 클러스터 SEO, 니치 커뮤니티 언어 기반 카피', 'pending');
+  const taskVisual = addTask(campaignId, 'yuna', '유나', '니치 서브컬처 비주얼 컨셉', '안티-제네릭 디자인, 니치 문화 코드 반영 이미지, 커뮤니티 공유욕구 자극', 'pending');
+  const taskMotion = addTask(campaignId, 'doha', '도하', '니치 감성 숏폼 콘텐츠', '니치 타겟 맞춤 틱톡/릴스, UGC 챌린지용 템플릿', 'pending');
+  const taskPerf = addTask(campaignId, 'taeyang', '태양', '니치 리타겟팅 & 마이크로 광고', '니치 관심사 기반 세그먼트, 마이크로 인플루언서 협업 세팅', 'pending');
+  const taskData = addTask(campaignId, 'eunji', '은지', '니치 세그먼트 투표 분석', '100인 심사위원 니치 관점 투표 집계, 세그먼트별 반응 인사이트', 'pending');
+  const taskDev = addTask(campaignId, 'siwon', '시원', 'AI 파이프라인 & 커뮤니티 데이터', 'LLM API 연동, 니치 커뮤니티 데이터 수집 자동화', 'in_progress');
 
-  // === Phase 1: 마케팅 플랜 생성 ===
+  // === Phase 1: 니치밴딩 마케팅 플랜 생성 ===
   updateCampaignStatus(campaignId, 'planning');
-  addEvent(campaignId, 'minseo', '민서', 'plan', `30일 마케팅 플랜 생성을 시작합니다...`);
+  addEvent(campaignId, 'minseo', '민서', 'plan', `니치밴딩 프레임워크 기반 30일 플랜 생성을 시작합니다. 니치 발견 → 진입 → 장악 → 확장 순으로 설계합니다.`);
 
   let plans;
   try {
@@ -91,8 +95,8 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     const response = await callLLM(settings, prompt);
     plans = parseJSONResponse<Array<{ day: number; week: number; title: string; description: string; channels: string[]; target: string; goal: string }>>(response.content);
 
-    addEvent(campaignId, 'minseo', '민서', 'plan', `30일 플랜 생성 완료! ${plans.length}일치 준비됐습니다. (${response.model})`);
-    addEvent(campaignId, 'hana', '하나', 'chat', `민서님 플랜 확인했습니다. 전략 방향 좋아요! 지우님, 유나님 이 플랜 기반으로 작업 시작해주세요.`);
+    addEvent(campaignId, 'minseo', '민서', 'plan', `니치밴딩 기반 30일 플랜 완료! ${plans.length}일치 - 니치 발견→진입→장악→확장 구조입니다. (${response.model})`);
+    addEvent(campaignId, 'hana', '하나', 'chat', `민서님 니치밴딩 플랜 확인했습니다. 세분화 타겟팅 훌륭해요! 지우님은 니치 롱테일 키워드, 유나님은 서브컬처 비주얼 시작해주세요.`);
   } catch (err) {
     addEvent(campaignId, 'minseo', '민서', 'system', `API 오류로 데모 플랜을 사용합니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
     plans = generateDemoPlan(productInfo.name);
@@ -110,9 +114,9 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   updateTask(taskSeo, 'in_progress');
   updateTask(taskVisual, 'in_progress');
 
-  addEvent(campaignId, 'jiwoo', '지우', 'creative', `SEO 최적화 카피 작성 시작합니다!`);
-  addEvent(campaignId, 'yuna', '유나', 'creative', `비주얼 컨셉 잡기 시작! 이미지 프롬프트도 함께 만들게요.`);
-  addEvent(campaignId, 'doha', '도하', 'chat', `유나님 컨셉 나오면 모션 버전도 바로 기획할게요.`);
+  addEvent(campaignId, 'jiwoo', '지우', 'creative', `니치 롱테일 키워드 기반 SEO 카피 작성 시작! 니치 커뮤니티 언어를 반영합니다.`);
+  addEvent(campaignId, 'yuna', '유나', 'creative', `니치 서브컬처 코드 분석 완료! 안티-제네릭 비주얼로 "이건 우리를 위한 것" 느낌을 줄게요.`);
+  addEvent(campaignId, 'doha', '도하', 'chat', `유나님 니치 비주얼 코드 나오면 UGC 챌린지용 모션 템플릿도 바로 기획합니다!`);
 
   const insertCreative = db.prepare('INSERT INTO creatives (id, campaign_id, angle, copy_text, hooking_text, image_prompt, platform, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime(\'now\'))');
   const selectedPlans = plans.slice(0, 3);
@@ -121,7 +125,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
 
   for (const plan of selectedPlans) {
     const platform = platforms[plan.day % platforms.length];
-    addEvent(campaignId, 'jiwoo', '지우', 'creative', `Day ${plan.day} "${plan.title}" - ${platform} SEO 카피 작성 중...`);
+    addEvent(campaignId, 'jiwoo', '지우', 'creative', `Day ${plan.day} "${plan.title}" - ${platform} 니치 타겟 맞춤 카피 작성 중...`);
 
     let creatives;
     try {
@@ -137,11 +141,11 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
       totalCreatives++;
     }
 
-    addEvent(campaignId, 'yuna', '유나', 'creative', `Day ${plan.day} 비주얼 ${creatives.length}개 감수 완료!`);
+    addEvent(campaignId, 'yuna', '유나', 'creative', `Day ${plan.day} 니치 서브컬처 비주얼 ${creatives.length}개 감수 완료!`);
   }
 
-  addEvent(campaignId, 'jiwoo', '지우', 'creative', `총 ${totalCreatives}개 SEO 최적화 카피 완성!`);
-  addEvent(campaignId, 'yuna', '유나', 'creative', `모든 소재 비주얼 퀄리티 OK!`);
+  addEvent(campaignId, 'jiwoo', '지우', 'creative', `총 ${totalCreatives}개 니치 SEO 카피 완성! 커뮤니티 언어와 롱테일 키워드 적용 완료.`);
+  addEvent(campaignId, 'yuna', '유나', 'creative', `모든 소재 니치 서브컬처 비주얼 체크 완료! 안티-제네릭 퀄리티 OK!`);
   updateTask(taskSeo, 'completed', `${totalCreatives}개 카피 작성`);
   updateTask(taskVisual, 'completed', `${totalCreatives}개 비주얼 감수`);
   updateTask(taskMotion, 'in_progress');
@@ -150,8 +154,8 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   // === Phase 3: 투표 ===
   updateCampaignStatus(campaignId, 'voting');
   updateTask(taskData, 'in_progress');
-  addEvent(campaignId, 'eunji', '은지', 'vote', `100인 AI 심사위원단 투표 시스템 가동합니다!`);
-  addEvent(campaignId, 'minseo', '민서', 'chat', `투표 결과가 우리 전략 방향을 결정합니다. 집중해서 봐주세요!`);
+  addEvent(campaignId, 'eunji', '은지', 'vote', `100인 AI 심사위원단 니치밴딩 관점 투표 시작합니다! "이건 나를 위한 광고"인지를 기준으로 평가합니다.`);
+  addEvent(campaignId, 'minseo', '민서', 'chat', `니치 타겟이 "이건 내 이야기다"라고 느끼는 소재가 이겨야 합니다. 집중해서 봐주세요!`);
 
   const allCreatives = db.prepare('SELECT * FROM creatives WHERE campaign_id = ?').all(campaignId) as Array<Record<string, unknown>>;
   const insertVote = db.prepare('INSERT INTO votes (campaign_id, creative_id, jury_id, score, comment) VALUES (?, ?, ?, ?, ?)');
@@ -212,10 +216,10 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
 
   // === 마무리 미팅 ===
   updateCampaignStatus(campaignId, 'active');
-  addEvent(campaignId, 'taeyang', '태양', 'deploy', `1위 소재 기반 Meta/Google 광고 세팅 완료. 본부장님 승인 대기 중입니다.`);
-  addEvent(campaignId, 'doha', '도하', 'creative', `1위 소재 모션 그래픽 버전 제작 가능합니다!`);
-  addEvent(campaignId, 'hana', '하나', 'chat', `모든 팀원 수고하셨습니다! "${productInfo.name}" 캠페인 파이프라인 완료. 결과가 훌륭합니다.`);
-  addEvent(campaignId, 'hana', '하나', 'system', `캠페인 활성화 완료. 대시보드에서 전체 결과를 확인하세요.`);
+  addEvent(campaignId, 'taeyang', '태양', 'deploy', `1위 소재 기반 니치 리타겟팅 광고 세팅 완료. 마이크로 세그먼트 타겟으로 세팅했습니다!`);
+  addEvent(campaignId, 'doha', '도하', 'creative', `1위 소재 니치 감성 숏폼 버전 제작 가능합니다! UGC 챌린지 템플릿도 준비했어요.`);
+  addEvent(campaignId, 'hana', '하나', 'chat', `모든 팀원 수고하셨습니다! 니치밴딩 전략이 잘 적용된 "${productInfo.name}" 캠페인입니다. 핵심 니치 장악 후 볼링핀 확장으로 이어가겠습니다!`);
+  addEvent(campaignId, 'hana', '하나', 'system', `니치밴딩 캠페인 파이프라인 완료. 대시보드에서 니치 타겟 반응을 확인하세요.`);
   updateTask(taskPerf, 'completed', '광고 세팅 완료');
   updateTask(taskDev, 'completed', '파이프라인 정상 운영 완료');
 
