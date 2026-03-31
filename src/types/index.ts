@@ -13,6 +13,7 @@ export interface Agent {
   color: string;
   gradient: string;
   status: 'idle' | 'working' | 'reviewing' | 'completed';
+  hireDate: string; // ISO date string
 }
 
 export const DEPARTMENT_LABELS: Record<Department, string> = {

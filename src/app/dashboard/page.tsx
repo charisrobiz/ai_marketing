@@ -13,7 +13,7 @@ export default function DashboardPage() {
   const stats = [
     { label: '활성 캠페인', value: campaigns.filter(c => c.status === 'active').length, icon: Zap, color: 'text-blue-400' },
     { label: '생성된 소재', value: campaigns.reduce((sum, c) => sum + (c.creatives?.length || 0), 0), icon: BarChart3, color: 'text-green-400' },
-    { label: 'AI 직원 활동', value: agents.filter(a => a.status === 'working').length + '/2', icon: Users, color: 'text-purple-400' },
+    { label: 'AI 직원 활동', value: `${agents.filter(a => a.status === 'working').length}/${agents.length}`, icon: Users, color: 'text-purple-400' },
     { label: '실시간 이벤트', value: liveEvents.length, icon: Activity, color: 'text-orange-400' },
   ];
 
