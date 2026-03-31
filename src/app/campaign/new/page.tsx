@@ -95,6 +95,14 @@ export default function NewCampaignPage() {
     };
 
     addCampaign(campaign);
+
+    // DB에도 저장
+    fetch('/api/campaigns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: campaign.id, productInfo: campaign.productInfo, status: campaign.status }),
+    }).catch(() => {});
+
     router.push(`/campaign/${campaign.id}`);
   };
 

@@ -1,6 +1,8 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
+import type { Campaign } from '@/types';
 import { Activity, BarChart3, Users, Zap, Radio } from 'lucide-react';
 import LiveStudioPanel from '@/components/dashboard/LiveStudioPanel';
 import AgentStatusPanel from '@/components/dashboard/AgentStatusPanel';
@@ -8,11 +10,23 @@ import PerformancePanel from '@/components/dashboard/PerformancePanel';
 import CampaignOverview from '@/components/dashboard/CampaignOverview';
 
 export default function DashboardPage() {
-  const { campaigns, liveEvents, agents } = useStore();
+  const { campaigns: storeCampaigns, liveEvents, agents } = useStore();
+  const [dbCampaigns, setDbCampaigns] = useState<Campaign[]>([]);
+
+  useEffect(() => {
+    fetch('/api/campaigns')
+      .then((res) => res.json())
+      .then((data) => setDbCampaigns(data))
+      .catch(() => {});
+  }, []);
+
+  const dbIds = new Set(dbCampaigns.map((c) => c.id));
+  const storeOnly = storeCampaigns.filter((c) => !dbIds.has(c.id));
+  const allCampaigns = [...dbCampaigns, ...storeOnly];
 
   const stats = [
-    { label: '활성 캠페인', value: campaigns.filter(c => c.status === 'active').length, icon: Zap, color: 'text-blue-400' },
-    { label: '생성된 소재', value: campaigns.reduce((sum, c) => sum + (c.creatives?.length || 0), 0), icon: BarChart3, color: 'text-green-400' },
+    { label: '활성 캠페인', value: allCampaigns.filter(c => c.status === 'active').length, icon: Zap, color: 'text-blue-400' },
+    { label: '총 캠페인', value: allCampaigns.length, icon: BarChart3, color: 'text-green-400' },
     { label: 'AI 직원 활동', value: `${agents.filter(a => a.status === 'working').length}/${agents.length}`, icon: Users, color: 'text-purple-400' },
     { label: '실시간 이벤트', value: liveEvents.length, icon: Activity, color: 'text-orange-400' },
   ];
@@ -44,20 +58,17 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Main Grid: Live Studio + Side panels */}
+      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Live Studio - 2 columns */}
         <div className="lg:col-span-2">
           <LiveStudioPanel />
         </div>
-        {/* Side panels */}
         <div className="space-y-6">
           <AgentStatusPanel />
           <PerformancePanel />
         </div>
       </div>
 
-      {/* Campaign Overview */}
       <CampaignOverview />
     </div>
   );

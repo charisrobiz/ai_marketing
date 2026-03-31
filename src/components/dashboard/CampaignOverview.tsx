@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useStore } from '@/store/useStore';
+import type { Campaign } from '@/types';
 import { Plus, ArrowRight } from 'lucide-react';
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -16,7 +18,19 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 export default function CampaignOverview() {
-  const { campaigns } = useStore();
+  const { campaigns: storeCampaigns } = useStore();
+  const [dbCampaigns, setDbCampaigns] = useState<Campaign[]>([]);
+
+  useEffect(() => {
+    fetch('/api/campaigns')
+      .then((res) => res.json())
+      .then((data) => setDbCampaigns(data))
+      .catch(() => {});
+  }, []);
+
+  const dbIds = new Set(dbCampaigns.map((c) => c.id));
+  const storeOnly = storeCampaigns.filter((c) => !dbIds.has(c.id));
+  const campaigns = [...dbCampaigns, ...storeOnly];
 
   return (
     <div className="glass-card p-6">

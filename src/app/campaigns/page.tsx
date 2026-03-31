@@ -1,8 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useStore } from '@/store/useStore';
 import { CATEGORY_LABELS } from '@/types';
+import type { Campaign } from '@/types';
 import { Plus, FolderOpen, ArrowRight } from 'lucide-react';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -17,7 +19,20 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 };
 
 export default function CampaignsPage() {
-  const { campaigns } = useStore();
+  const { campaigns: storeCampaigns } = useStore();
+  const [dbCampaigns, setDbCampaigns] = useState<Campaign[]>([]);
+
+  useEffect(() => {
+    fetch('/api/campaigns')
+      .then((res) => res.json())
+      .then((data) => setDbCampaigns(data))
+      .catch(() => {});
+  }, []);
+
+  // Merge: DB campaigns + store-only campaigns (dedup by id)
+  const dbIds = new Set(dbCampaigns.map((c) => c.id));
+  const storeOnly = storeCampaigns.filter((c) => !dbIds.has(c.id));
+  const campaigns = [...dbCampaigns, ...storeOnly];
 
   return (
     <div className="max-w-4xl mx-auto py-8">
