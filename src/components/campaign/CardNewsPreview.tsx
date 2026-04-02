@@ -5,16 +5,19 @@ import { Camera, Video, FileText, Smartphone, Download } from 'lucide-react';
 import { useRef } from 'react';
 
 const ANGLE_STYLES: Record<string, { bg: string; accent: string; emoji: string }> = {
-  '커뮤니티형': { bg: 'from-indigo-900 to-purple-900', accent: '#818CF8', emoji: '🤝' },
+  '공감형': { bg: 'from-purple-900 to-pink-800', accent: '#C084FC', emoji: '💜' },
+  '바이럴형': { bg: 'from-yellow-900 to-amber-800', accent: '#FBBF24', emoji: '😂' },
   '권위형': { bg: 'from-slate-900 to-zinc-800', accent: '#F59E0B', emoji: '👑' },
   'UGC유도형': { bg: 'from-pink-900 to-rose-800', accent: '#FB7185', emoji: '📱' },
-  '마이크로인플루언서형': { bg: 'from-teal-900 to-cyan-800', accent: '#2DD4BF', emoji: '⭐' },
-  'FOMO형': { bg: 'from-red-900 to-orange-800', accent: '#F97316', emoji: '🔥' },
-  // Legacy angles
+  '긴급형': { bg: 'from-red-900 to-orange-800', accent: '#F97316', emoji: '🔥' },
+  // Legacy
   '감성형': { bg: 'from-purple-900 to-pink-800', accent: '#C084FC', emoji: '💜' },
   '유머형': { bg: 'from-yellow-900 to-amber-800', accent: '#FBBF24', emoji: '😂' },
   '기능형': { bg: 'from-blue-900 to-cyan-800', accent: '#38BDF8', emoji: '⚡' },
   '스토리형': { bg: 'from-emerald-900 to-green-800', accent: '#34D399', emoji: '📖' },
+  '커뮤니티형': { bg: 'from-indigo-900 to-purple-900', accent: '#818CF8', emoji: '🤝' },
+  '마이크로인플루언서형': { bg: 'from-teal-900 to-cyan-800', accent: '#2DD4BF', emoji: '⭐' },
+  'FOMO형': { bg: 'from-red-900 to-orange-800', accent: '#F97316', emoji: '🔥' },
 };
 
 const DEFAULT_STYLE = { bg: 'from-gray-900 to-gray-800', accent: '#9CA3AF', emoji: '📢' };
