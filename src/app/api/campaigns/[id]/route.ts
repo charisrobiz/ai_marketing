@@ -83,3 +83,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   return NextResponse.json({ id, updated: true });
 }
+
+// DELETE: 캠페인 삭제
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+
+  const deleteInTransaction = db.transaction(() => {
+    db.prepare('DELETE FROM votes WHERE campaign_id = ?').run(id);
+    db.prepare('DELETE FROM creatives WHERE campaign_id = ?').run(id);
+    db.prepare('DELETE FROM daily_plans WHERE campaign_id = ?').run(id);
+    db.prepare('DELETE FROM live_events WHERE campaign_id = ?').run(id);
+    db.prepare('DELETE FROM agent_tasks WHERE campaign_id = ?').run(id);
+    db.prepare('DELETE FROM campaigns WHERE id = ?').run(id);
+  });
+
+  deleteInTransaction();
+
+  return NextResponse.json({ id, deleted: true });
+}

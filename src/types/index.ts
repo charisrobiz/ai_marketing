@@ -46,7 +46,7 @@ export interface ProductInfo {
 export interface Campaign {
   id: string;
   productInfo: ProductInfo;
-  status: 'intake' | 'planning' | 'creating' | 'voting' | 'testing' | 'deploying' | 'active' | 'completed';
+  status: 'intake' | 'planning' | 'creating' | 'voting' | 'testing' | 'deploying' | 'active' | 'paused' | 'completed';
   createdAt: string;
   dailyPlan?: DailyPlan[];
   creatives?: Creative[];
