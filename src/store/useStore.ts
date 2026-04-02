@@ -158,14 +158,17 @@ const DEFAULT_SETTINGS: AdminSettings = {
   autoDeployEnabled: false,
 };
 
-function loadSettings(): AdminSettings {
-  if (typeof window === 'undefined') return DEFAULT_SETTINGS;
+// Hydrate settings from localStorage after mount (avoid SSR mismatch)
+let _settingsHydrated = false;
+function hydrateSettings() {
+  if (_settingsHydrated || typeof window === 'undefined') return;
+  _settingsHydrated = true;
   try {
     const saved = localStorage.getItem('admin_settings');
-    return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
+    if (saved) {
+      useStore.setState({ settings: { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } });
+    }
+  } catch { /* empty */ }
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -226,8 +229,8 @@ export const useStore = create<AppState>((set, get) => ({
       agents: state.agents.filter((a) => a.id !== id),
     })),
 
-  // Admin Settings
-  settings: loadSettings(),
+  // Admin Settings (always start with defaults, hydrate on client)
+  settings: DEFAULT_SETTINGS,
   updateSettings: (newSettings) =>
     set((state) => {
       const updated = { ...state.settings, ...newSettings };

@@ -1,13 +1,18 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Bell, Search } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
 export default function Header() {
   const { sidebarOpen, liveEvents } = useStore();
-  const recentCount = liveEvents.filter(
-    (e) => Date.now() - new Date(e.timestamp).getTime() < 60000
-  ).length;
+  const [recentCount, setRecentCount] = useState(0);
+
+  useEffect(() => {
+    setRecentCount(
+      liveEvents.filter((e) => Date.now() - new Date(e.timestamp).getTime() < 60000).length
+    );
+  }, [liveEvents]);
 
   return (
     <header
