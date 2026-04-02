@@ -160,6 +160,7 @@ export interface AdminSettings {
   // General
   defaultBudget: number;
   autoDeployEnabled: boolean;
+  ceoApprovalLevel: 'auto' | 'ceo_final' | 'ceo_notify';
 }
 
 // === Category Labels ===

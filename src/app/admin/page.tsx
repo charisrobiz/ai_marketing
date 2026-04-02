@@ -519,6 +519,31 @@ export default function AdminPage() {
               className="w-full mt-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:border-blue-500/50 focus:outline-none text-sm"
             />
           </div>
+          {/* CEO 개입 레벨 */}
+          <div>
+            <label className="text-sm font-medium">CEO 승인 레벨</label>
+            <p className="text-[10px] text-gray-500 mb-2">본부장이 승인한 소재에 대한 CEO 개입 수준을 설정합니다</p>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { value: 'auto', label: '완전 자동', desc: '본부장 승인 → 바로 집행' },
+                { value: 'ceo_final', label: 'CEO 최종 승인', desc: '본부장 승인 후 CEO 확인 필요' },
+                { value: 'ceo_notify', label: 'CEO 알림만', desc: '자동 집행 + CEO에게 알림' },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setLocalSettings({ ...localSettings, ceoApprovalLevel: opt.value })}
+                  className={`p-3 rounded-lg border text-left transition-all ${
+                    localSettings.ceoApprovalLevel === opt.value
+                      ? 'border-blue-500 bg-blue-500/10'
+                      : 'border-white/10 bg-white/5 hover:bg-white/10'
+                  }`}
+                >
+                  <p className="text-xs font-medium">{opt.label}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">자동 광고 배포</p>

@@ -92,6 +92,45 @@ db.exec(`
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS creative_reviews (
+    id TEXT PRIMARY KEY,
+    campaign_id TEXT NOT NULL,
+    creative_id TEXT NOT NULL,
+    reviewer TEXT NOT NULL DEFAULT 'hana',
+    reviewer_name TEXT NOT NULL DEFAULT '하나',
+    status TEXT NOT NULL DEFAULT 'pending_review',
+    score INTEGER,
+    brand_consistency INTEGER,
+    target_fit INTEGER,
+    cost_efficiency INTEGER,
+    comment TEXT,
+    revision_note TEXT,
+    ceo_status TEXT DEFAULT 'pending',
+    ceo_comment TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    reviewed_at TEXT,
+    ceo_reviewed_at TEXT,
+    FOREIGN KEY (campaign_id) REFERENCES campaigns(id),
+    FOREIGN KEY (creative_id) REFERENCES creatives(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS revision_history (
+    id TEXT PRIMARY KEY,
+    review_id TEXT NOT NULL,
+    creative_id TEXT NOT NULL,
+    revision_number INTEGER NOT NULL DEFAULT 1,
+    original_hook TEXT,
+    original_copy TEXT,
+    revised_hook TEXT,
+    revised_copy TEXT,
+    revised_by TEXT NOT NULL,
+    revised_by_name TEXT NOT NULL,
+    reason TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (review_id) REFERENCES creative_reviews(id),
+    FOREIGN KEY (creative_id) REFERENCES creatives(id)
+  );
 `);
 
 export default db;

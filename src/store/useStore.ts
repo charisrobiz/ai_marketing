@@ -167,6 +167,7 @@ const DEFAULT_SETTINGS: AdminSettings = {
   googlePlayJsonKey: '',
   defaultBudget: 500000,
   autoDeployEnabled: false,
+  ceoApprovalLevel: 'ceo_final',
 };
 
 // Hydrate settings from localStorage after mount (avoid SSR mismatch)

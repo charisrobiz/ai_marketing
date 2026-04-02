@@ -246,7 +246,15 @@ export default function CampaignDetailPage() {
       </div>
 
       {/* Quick Links */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <Link href={`/campaign/${id}/approval`}
+          className="glass-card p-4 flex items-center gap-3 hover:border-amber-500/30 transition-colors">
+          <Palette className="w-5 h-5 text-amber-400" />
+          <div>
+            <p className="text-sm font-medium">소재 승인</p>
+            <p className="text-[10px] text-gray-500">본부장 검토 & CEO 승인</p>
+          </div>
+        </Link>
         <Link href={`/campaign/${id}/report`}
           className="glass-card p-4 flex items-center gap-3 hover:border-green-500/30 transition-colors">
           <BarChart3 className="w-5 h-5 text-green-400" />
