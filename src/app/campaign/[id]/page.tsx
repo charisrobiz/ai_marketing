@@ -9,7 +9,8 @@ import CampaignPipeline from '@/components/campaign/CampaignPipeline';
 import DailyPlanView from '@/components/campaign/DailyPlanView';
 import CreativeGallery from '@/components/campaign/CreativeGallery';
 import VotingArena from '@/components/campaign/VotingArena';
-import { ArrowLeft, Rocket, Loader2, MessageCircle, ClipboardList, Download } from 'lucide-react';
+import CardNewsPreview from '@/components/campaign/CardNewsPreview';
+import { ArrowLeft, Rocket, Loader2, MessageCircle, ClipboardList, Download, Eye, BarChart3, Calendar, Palette } from 'lucide-react';
 import Link from 'next/link';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -31,6 +32,7 @@ export default function CampaignDetailPage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'preview'>('overview');
 
   // Try store first, then fetch from DB
   const storeCampaign = storeCampaigns.find((c) => c.id === id);
@@ -199,15 +201,57 @@ export default function CampaignDetailPage() {
         </div>
       </div>
 
-      {/* Content */}
-      {campaign.dailyPlan && campaign.dailyPlan.length > 0 && (
-        <DailyPlanView plans={campaign.dailyPlan} />
-      )}
+      {/* Tab Switcher */}
       {campaign.creatives && campaign.creatives.length > 0 && (
-        <CreativeGallery creatives={campaign.creatives} />
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'overview' ? 'bg-blue-500/20 text-blue-400' : 'text-gray-500 hover:bg-white/5'
+            }`}
+          >
+            <BarChart3 size={14} /> 분석 데이터
+          </button>
+          <button
+            onClick={() => setActiveTab('preview')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'preview' ? 'bg-purple-500/20 text-purple-400' : 'text-gray-500 hover:bg-white/5'
+            }`}
+          >
+            <Eye size={14} /> 결과물 미리보기
+          </button>
+        </div>
       )}
-      {campaign.votes && campaign.votes.length > 0 && (
-        <VotingArena votes={campaign.votes} creatives={campaign.creatives || []} />
+
+      {activeTab === 'overview' ? (
+        <>
+          {/* Content */}
+          {campaign.dailyPlan && campaign.dailyPlan.length > 0 && (
+            <DailyPlanView plans={campaign.dailyPlan} />
+          )}
+          {campaign.creatives && campaign.creatives.length > 0 && (
+            <CreativeGallery creatives={campaign.creatives} />
+          )}
+          {campaign.votes && campaign.votes.length > 0 && (
+            <VotingArena votes={campaign.votes} creatives={campaign.creatives || []} />
+          )}
+        </>
+      ) : (
+        <>
+          {campaign.creatives && campaign.creatives.length > 0 && (
+            <div className="glass-card p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <Palette className="w-5 h-5 text-purple-400" />
+                <h2 className="text-lg font-semibold">마케팅 결과물 미리보기</h2>
+                <span className="text-xs text-gray-500 ml-auto">{campaign.creatives.length}개 소재</span>
+              </div>
+              <CardNewsPreview
+                creatives={campaign.creatives}
+                productName={campaign.productInfo.name}
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

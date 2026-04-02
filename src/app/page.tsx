@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Zap, ArrowRight, Users, BarChart3, Sparkles, Target } from 'lucide-react';
+import { Zap, ArrowRight, Users, BarChart3, Sparkles, Target, Play, Loader2 } from 'lucide-react';
 
 const FEATURES = [
   {
@@ -27,6 +29,20 @@ const FEATURES = [
 ];
 
 export default function Home() {
+  const [demoLoading, setDemoLoading] = useState(false);
+  const router = useRouter();
+
+  const runDemo = async () => {
+    setDemoLoading(true);
+    try {
+      const res = await fetch('/api/demo', { method: 'POST' });
+      const data = await res.json();
+      router.push(`/campaign/${data.campaignId}`);
+    } catch {
+      setDemoLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto py-12">
       {/* Hero */}
@@ -44,7 +60,7 @@ export default function Home() {
           제품 정보만 입력하면, AI 마케팅 팀이 30일 플랜 수립부터
           크리에이티브 생성, 심사위원 투표, 광고 집행까지 모든 것을 자동으로 수행합니다.
         </p>
-        <div className="flex items-center justify-center gap-4">
+        <div className="flex items-center justify-center gap-3 flex-wrap">
           <Link
             href="/campaign/new"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium hover:opacity-90 transition-opacity"
@@ -52,6 +68,14 @@ export default function Home() {
             캠페인 시작하기
             <ArrowRight size={18} />
           </Link>
+          <button
+            onClick={runDemo}
+            disabled={demoLoading}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-green-600 to-teal-600 text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {demoLoading ? <Loader2 size={18} className="animate-spin" /> : <Play size={18} />}
+            {demoLoading ? '생성 중...' : '데모 시뮬레이션'}
+          </button>
           <Link
             href="/dashboard"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border border-white/10 text-gray-300 font-medium hover:bg-white/5 transition-colors"
