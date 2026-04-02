@@ -246,7 +246,15 @@ export default function CampaignDetailPage() {
       </div>
 
       {/* Quick Links */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <Link href={`/campaign/${id}/report`}
+          className="glass-card p-4 flex items-center gap-3 hover:border-green-500/30 transition-colors">
+          <BarChart3 className="w-5 h-5 text-green-400" />
+          <div>
+            <p className="text-sm font-medium">주간 리포트</p>
+            <p className="text-[10px] text-gray-500">성과 데이터 & 인사이트</p>
+          </div>
+        </Link>
         <Link href={`/campaign/${id}/meeting`}
           className="glass-card p-4 flex items-center gap-3 hover:border-blue-500/30 transition-colors">
           <MessageCircle className="w-5 h-5 text-blue-400" />
@@ -264,8 +272,8 @@ export default function CampaignDetailPage() {
           </div>
         </Link>
         <a href={`/api/export/${id}`} download
-          className="glass-card p-4 flex items-center gap-3 hover:border-green-500/30 transition-colors">
-          <Download className="w-5 h-5 text-green-400" />
+          className="glass-card p-4 flex items-center gap-3 hover:border-orange-500/30 transition-colors">
+          <Download className="w-5 h-5 text-orange-400" />
           <div>
             <p className="text-sm font-medium">결과 다운로드</p>
             <p className="text-[10px] text-gray-500">JSON 전체 내보내기</p>
