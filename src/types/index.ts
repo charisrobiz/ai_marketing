@@ -134,12 +134,30 @@ export interface LiveEvent {
 
 // === Admin Types ===
 export interface AdminSettings {
+  // AI LLM
   openaiApiKey: string;
   claudeApiKey: string;
   geminiApiKey: string;
-  metaAdsToken: string;
-  googleAdsToken: string;
+  // Design
   figmaApiKey: string;
+  // Ads
+  metaAdsToken: string;
+  metaAdAccountId: string;
+  googleAdsToken: string;
+  googleAdsDeveloperToken: string;
+  googleAdsCustomerId: string;
+  // Analytics
+  firebaseProjectId: string;
+  firebaseServiceAccountKey: string;
+  // Attribution (MMP)
+  appsflyerApiToken: string;
+  appsflyerAppId: string;
+  // App Store
+  appStoreConnectKeyId: string;
+  appStoreConnectIssuerId: string;
+  appStoreConnectPrivateKey: string;
+  googlePlayJsonKey: string;
+  // General
   defaultBudget: number;
   autoDeployEnabled: boolean;
 }
