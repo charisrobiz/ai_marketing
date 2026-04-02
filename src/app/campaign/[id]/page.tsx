@@ -215,11 +215,11 @@ export default function CampaignDetailPage() {
               </button>
             )}
 
-            {/* Edit - go to campaign/new with prefill (simplified: link to edit) */}
+            {/* Edit */}
             {hasData && !isRunning && (
-              <Link href={`/campaign/${id}/meeting`}
+              <Link href={`/campaign/${id}/edit`}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-blue-500/30 text-blue-400 text-sm hover:bg-blue-500/10 transition-colors">
-                <Pencil size={14} /> 미팅 로그
+                <Pencil size={14} /> 정보 수정
               </Link>
             )}
 

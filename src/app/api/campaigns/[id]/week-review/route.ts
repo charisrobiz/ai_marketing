@@ -79,5 +79,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     db.prepare('UPDATE campaigns SET status = ?, updated_at = datetime(\'now\') WHERE id = ?').run('completed', campaignId);
   }
 
+  // 자동 승인 정책: Week 1만 CEO 직접, 이후 자동
+  if (nextWeek >= 2 && nextWeek <= 4) {
+    // Week 2+ 소재는 본부장 승인만으로 자동 진행
+    const pendingReviews = db.prepare(
+      "SELECT id FROM creative_reviews WHERE campaign_id = ? AND status = 'approved' AND ceo_status = 'pending'"
+    ).all(campaignId) as Array<{ id: string }>;
+
+    if (pendingReviews.length > 0) {
+      for (const r of pendingReviews) {
+        db.prepare("UPDATE creative_reviews SET ceo_status = 'approved', ceo_comment = 'Week 2+ 자동 승인 (정책 적용)', ceo_reviewed_at = datetime('now') WHERE id = ?").run(r.id);
+      }
+      addEvent(campaignId, 'hana', '하나', 'system', `Week ${currentWeek} 본부장 승인 소재 ${pendingReviews.length}개 자동 집행 승인 (자동 정책 적용)`);
+    }
+
+    // 이상치 감지: CAC 급등 시 CEO 알림
+    if (currentWeek >= 2) {
+      const prevMetrics = metricsMap[currentWeek - 1];
+      if (prevMetrics && weekMetrics.cac > 0 && prevMetrics.cac > 0) {
+        const cacIncrease = ((weekMetrics.cac - prevMetrics.cac) / prevMetrics.cac) * 100;
+        if (cacIncrease > 30) {
+          addEvent(campaignId, 'eunji', '은지', 'system', `⚠️ CAC 이상치 감지! Week ${currentWeek - 1} ${prevMetrics.cac}원 → Week ${currentWeek} ${weekMetrics.cac}원 (${Math.round(cacIncrease)}% 상승). CEO 검토가 필요합니다.`);
+          addEvent(campaignId, 'hana', '하나', 'chat', `CEO님, CAC가 급등했습니다. 타겟 피로도 또는 경쟁 심화일 수 있어요. 전략 조정 여부를 확인해주세요.`);
+        }
+      }
+    }
+  }
+
   return NextResponse.json({ currentWeek, nextWeek: nextWeek <= 4 ? nextWeek : null, metrics: weekMetrics });
 }
