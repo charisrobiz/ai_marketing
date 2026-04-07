@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, LogOut } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 export default function Header() {
   const { sidebarOpen, liveEvents } = useStore();
+  const { user, signOut } = useAuth();
   const [recentCount, setRecentCount] = useState(0);
 
   useEffect(() => {
@@ -35,7 +37,7 @@ export default function Header() {
           />
         </div>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <button className="relative p-2 rounded-lg hover:bg-white/5 transition-colors">
           <Bell size={20} className="text-gray-400" />
           {recentCount > 0 && (
@@ -46,8 +48,17 @@ export default function Header() {
         </button>
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5">
           <span className="text-sm">👑</span>
-          <span className="text-sm font-medium">쭈니 CEO</span>
+          <span className="text-sm font-medium truncate max-w-[140px]">
+            {user?.email || 'CEO'}
+          </span>
         </div>
+        <button
+          onClick={signOut}
+          className="p-2 rounded-lg hover:bg-red-500/10 text-gray-400 hover:text-red-400 transition-colors"
+          title="로그아웃"
+        >
+          <LogOut size={18} />
+        </button>
       </div>
     </header>
   );
