@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/store/useStore';
 import { CATEGORY_LABELS, type ProductCategory } from '@/types';
 import { ArrowRight, ArrowLeft, Sparkles, CheckCircle, Image, Video, AlertTriangle } from 'lucide-react';
+import MediaUploadStep from '@/components/campaign/MediaUploadStep';
+import type { UploadedMedia } from '@/components/campaign/MediaUploadStep';
 
-// AI가 카테고리별로 생성하는 심층 질문 (실제로는 LLM이 생성)
 const CATEGORY_QUESTIONS: Record<ProductCategory, { question: string; placeholder: string }[]> = {
   mobile_app: [
     { question: '이 앱의 핵심 기능을 한 문장으로 설명해주세요.', placeholder: '예: AI가 사진을 자동으로 포토북으로 만들어줍니다.' },
@@ -68,7 +69,7 @@ const CATEGORY_QUESTIONS: Record<ProductCategory, { question: string; placeholde
 
 export default function NewCampaignPage() {
   const router = useRouter();
-  const { addCampaign } = useStore();
+  const { addCampaign, settings } = useStore();
   const [step, setStep] = useState(0);
   const [category, setCategory] = useState<ProductCategory | null>(null);
   const [name, setName] = useState('');
@@ -76,11 +77,13 @@ export default function NewCampaignPage() {
   const [targetAudience, setTargetAudience] = useState('');
   const [uniqueValue, setUniqueValue] = useState('');
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [mediaFiles, setMediaFiles] = useState<UploadedMedia[]>([]);
   const [generateImage, setGenerateImage] = useState(false);
   const [generateVideo, setGenerateVideo] = useState(false);
   const [apiWarning, setApiWarning] = useState('');
 
-  const { settings } = useStore();
+  // 캠페인 ID를 미리 생성 (미디어 업로드에 필요)
+  const campaignId = useMemo(() => crypto.randomUUID(), []);
 
   const handleMediaToggle = (type: 'image' | 'video', checked: boolean) => {
     if (type === 'image') {
@@ -106,7 +109,7 @@ export default function NewCampaignPage() {
     if (!category || !name) return;
 
     const campaign = {
-      id: crypto.randomUUID(),
+      id: campaignId,
       productInfo: {
         category,
         name,
@@ -132,6 +135,8 @@ export default function NewCampaignPage() {
   };
 
   const questions = category ? CATEGORY_QUESTIONS[category] : [];
+  const stepLabels = ['카테고리', '기본 정보', '심층 질문', '미디어 업로드', '확인'];
+  const totalSteps = stepLabels.length;
 
   return (
     <div className="max-w-2xl mx-auto py-8">
@@ -142,10 +147,10 @@ export default function NewCampaignPage() {
 
       {/* Progress Steps */}
       <div className="flex items-center gap-2 mb-8">
-        {['카테고리', '기본 정보', '심층 질문', '확인'].map((label, i) => (
+        {stepLabels.map((label, i) => (
           <div key={label} className="flex items-center gap-2 flex-1">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0 ${
                 i === step
                   ? 'bg-blue-600 text-white'
                   : i < step
@@ -158,7 +163,7 @@ export default function NewCampaignPage() {
             <span className={`text-xs ${i === step ? 'text-white' : 'text-gray-500'} hidden sm:inline`}>
               {label}
             </span>
-            {i < 3 && <div className="flex-1 h-px bg-white/10" />}
+            {i < totalSteps - 1 && <div className="flex-1 h-px bg-white/10" />}
           </div>
         ))}
       </div>
@@ -192,43 +197,23 @@ export default function NewCampaignPage() {
             <h2 className="text-lg font-semibold mb-4">기본 정보</h2>
             <div>
               <label className="block text-sm text-gray-400 mb-1.5">제품/서비스 이름 *</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="예: SNAPTALE"
-                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-blue-500/50 focus:outline-none text-sm"
-              />
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: SNAPTALE"
+                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-blue-500/50 focus:outline-none text-sm" />
             </div>
             <div>
               <label className="block text-sm text-gray-400 mb-1.5">간단한 설명</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="제품/서비스를 한두 문장으로 설명해주세요."
-                rows={3}
-                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-blue-500/50 focus:outline-none text-sm resize-none"
-              />
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="제품/서비스를 한두 문장으로 설명해주세요." rows={3}
+                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-blue-500/50 focus:outline-none text-sm resize-none" />
             </div>
             <div>
               <label className="block text-sm text-gray-400 mb-1.5">타겟 고객</label>
-              <input
-                type="text"
-                value={targetAudience}
-                onChange={(e) => setTargetAudience(e.target.value)}
-                placeholder="예: 20~30대 자녀를 가진 부모"
-                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-blue-500/50 focus:outline-none text-sm"
-              />
+              <input type="text" value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="예: 20~30대 자녀를 가진 부모"
+                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-blue-500/50 focus:outline-none text-sm" />
             </div>
             <div>
               <label className="block text-sm text-gray-400 mb-1.5">핵심 차별점</label>
-              <input
-                type="text"
-                value={uniqueValue}
-                onChange={(e) => setUniqueValue(e.target.value)}
-                placeholder="예: AI가 자동으로 사진첩을 만들어줌"
-                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-blue-500/50 focus:outline-none text-sm"
-              />
+              <input type="text" value={uniqueValue} onChange={(e) => setUniqueValue(e.target.value)} placeholder="예: AI가 자동으로 사진첩을 만들어줌"
+                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-blue-500/50 focus:outline-none text-sm" />
             </div>
           </div>
         )}
@@ -241,27 +226,31 @@ export default function NewCampaignPage() {
               <h2 className="text-lg font-semibold">AI 맞춤 심층 질문</h2>
             </div>
             <p className="text-sm text-gray-500 mb-4">
-              마쥬(마케팅 디렉터)가 {CATEGORY_LABELS[category!]} 카테고리에 맞는 질문을 준비했습니다.
+              {CATEGORY_LABELS[category!]} 카테고리에 맞는 질문을 준비했습니다.
             </p>
             {questions.map((q, i) => (
               <div key={i}>
                 <label className="block text-sm text-gray-300 mb-1.5">
                   <span className="text-blue-400 mr-1">Q{i + 1}.</span> {q.question}
                 </label>
-                <input
-                  type="text"
-                  value={answers[`q${i}`] || ''}
-                  onChange={(e) => setAnswers({ ...answers, [`q${i}`]: e.target.value })}
-                  placeholder={q.placeholder}
-                  className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-blue-500/50 focus:outline-none text-sm"
-                />
+                <input type="text" value={answers[`q${i}`] || ''} onChange={(e) => setAnswers({ ...answers, [`q${i}`]: e.target.value })} placeholder={q.placeholder}
+                  className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-blue-500/50 focus:outline-none text-sm" />
               </div>
             ))}
           </div>
         )}
 
-        {/* Step 3: Confirm */}
+        {/* Step 3: Media Upload */}
         {step === 3 && (
+          <MediaUploadStep
+            campaignId={campaignId}
+            files={mediaFiles}
+            onFilesChange={setMediaFiles}
+          />
+        )}
+
+        {/* Step 4: Confirm */}
+        {step === 4 && (
           <div>
             <h2 className="text-lg font-semibold mb-4">캠페인 정보 확인</h2>
             <div className="space-y-3 text-sm">
@@ -285,50 +274,48 @@ export default function NewCampaignPage() {
                 <span className="text-gray-500">차별점</span>
                 <span className="text-right max-w-xs">{uniqueValue || '-'}</span>
               </div>
+              {mediaFiles.length > 0 && (
+                <div className="flex justify-between py-2 border-b border-white/5">
+                  <span className="text-gray-500">참고 미디어</span>
+                  <span className="text-blue-400">{mediaFiles.filter(f => f.uploaded).length}개 업로드됨</span>
+                </div>
+              )}
             </div>
+
             {/* 미디어 생성 옵션 */}
             <div className="mt-6 p-4 rounded-lg bg-white/5 border border-white/10">
-              <h3 className="text-sm font-semibold mb-3">미디어 생성 옵션</h3>
+              <h3 className="text-sm font-semibold mb-3">AI 미디어 생성 옵션</h3>
               <div className="space-y-3">
                 <label className="flex items-center gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={generateImage}
-                    onChange={(e) => handleMediaToggle('image', e.target.checked)}
-                    className="w-4 h-4 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0 cursor-pointer"
-                  />
+                  <input type="checkbox" checked={generateImage} onChange={(e) => handleMediaToggle('image', e.target.checked)}
+                    className="w-4 h-4 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0 cursor-pointer" />
                   <Image size={18} className="text-green-400" />
                   <div>
                     <span className="text-sm text-gray-300 group-hover:text-white transition-colors">AI 이미지 생성</span>
-                    <span className="text-xs text-gray-500 ml-2">Gemini Nano Banana 2 &middot; ~$0.04/장</span>
+                    <span className="text-xs text-gray-500 ml-2">Gemini &middot; ~$0.04/장</span>
                   </div>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={generateVideo}
-                    onChange={(e) => handleMediaToggle('video', e.target.checked)}
-                    className="w-4 h-4 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0 cursor-pointer"
-                  />
+                  <input type="checkbox" checked={generateVideo} onChange={(e) => handleMediaToggle('video', e.target.checked)}
+                    className="w-4 h-4 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0 cursor-pointer" />
                   <Video size={18} className="text-purple-400" />
                   <div>
                     <span className="text-sm text-gray-300 group-hover:text-white transition-colors">AI 동영상 생성</span>
-                    <span className="text-xs text-gray-500 ml-2">Runway Gen-4 Turbo &middot; ~$0.25/5초</span>
+                    <span className="text-xs text-gray-500 ml-2">Runway Gen-4 &middot; ~$0.25/5초</span>
                   </div>
                 </label>
               </div>
               {apiWarning && (
                 <div className="mt-3 flex items-center gap-2 text-amber-400 text-xs bg-amber-500/10 px-3 py-2 rounded-lg">
-                  <AlertTriangle size={14} />
-                  {apiWarning}
+                  <AlertTriangle size={14} />{apiWarning}
                 </div>
               )}
             </div>
 
             <div className="mt-4 p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
               <p className="text-sm text-blue-400">
-                캠페인을 시작하면 AI 팀이 즉시 30일 마케팅 플랜을 생성하고,
-                크리에이티브 소재 제작을 시작합니다.
+                캠페인을 시작하면 AI 팀이 즉시 30일 마케팅 플랜을 생성하고, 크리에이티브 소재 제작을 시작합니다.
+                {mediaFiles.some(f => f.uploaded) && ' CEO가 업로드한 미디어를 참고하여 더 정확한 소재를 만듭니다.'}
                 {generateImage && ' 각 소재에 AI 이미지가 자동 생성됩니다.'}
                 {generateVideo && ' 이미지 기반 숏폼 동영상도 함께 제작됩니다.'}
               </p>
@@ -345,13 +332,13 @@ export default function NewCampaignPage() {
           >
             <ArrowLeft size={16} /> 이전
           </button>
-          {step < 3 ? (
+          {step < totalSteps - 1 ? (
             <button
               onClick={() => setStep(step + 1)}
-              disabled={step === 0 && !category || step === 1 && !name}
+              disabled={(step === 0 && !category) || (step === 1 && !name)}
               className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 disabled:opacity-30 transition-colors"
             >
-              다음 <ArrowRight size={16} />
+              {step === 3 ? '건너뛰기 / 다음' : '다음'} <ArrowRight size={16} />
             </button>
           ) : (
             <button

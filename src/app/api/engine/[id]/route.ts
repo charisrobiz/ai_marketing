@@ -5,7 +5,7 @@ import { callLLM, parseJSONResponse } from '@/lib/ai/llmClient';
 import { JURY_PERSONAS } from '@/data/juryPersonas';
 import { generateImage } from '@/lib/media/imageGenerator';
 import { generateVideo } from '@/lib/media/videoGenerator';
-import type { ProductInfo, CampaignOptions } from '@/types';
+import type { ProductInfo, CampaignOptions, CampaignMedia, MediaContent } from '@/types';
 
 async function getSettings() {
   const { data: rows } = await supabase.from('settings').select('key, value');
@@ -55,6 +55,17 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   const options: CampaignOptions = (campaign.options as unknown as CampaignOptions) || { generateImage: false, generateVideo: false };
   const settings = await getSettings();
 
+  // 캠페인 미디어 조회
+  const { data: mediaRows } = await supabase.from('campaign_media').select('*').eq('campaign_id', campaignId).order('sort_order');
+  const campaignMedia: CampaignMedia[] = (mediaRows || []).map((m) => ({
+    ...m,
+    parsedContent: m.content ? JSON.parse(m.content) as MediaContent : null,
+  }));
+
+  // 미디어 용도별 분류
+  const videoSources = campaignMedia.filter((m) => m.parsedContent?.usage_intent === 'video_source');
+  const imageRefs = campaignMedia.filter((m) => ['ad_image_reference', 'background_source', 'app_screenshot'].includes(m.parsedContent?.usage_intent || ''));
+
   // === 하나(본부장) 니치밴딩 브리핑 ===
   await addEvent(campaignId, 'hana', '하나', 'chat', `팀 여러분, "${productInfo.name}" 캠페인 킥오프 미팅을 시작합니다!`);
   await addEvent(campaignId, 'hana', '하나', 'chat', `이번 캠페인은 니치밴딩(Niche Banding) 전략으로 진행합니다.`);
@@ -86,7 +97,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
 
   let plans;
   try {
-    const prompt = buildPlanPrompt(productInfo);
+    const prompt = buildPlanPrompt(productInfo, campaignMedia);
     const response = await callLLM(settings, prompt);
     plans = parseJSONResponse<Array<{ day: number; week: number; title: string; description: string; channels: string[]; target: string; goal: string }>>(response.content);
     await addEvent(campaignId, 'minseo', '민서', 'plan', `니치밴딩 기반 30일 플랜 완료! ${plans.length}일치 (${response.model})`);
@@ -124,7 +135,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
 
     let creatives;
     try {
-      const prompt = buildCreativePrompt(productInfo, plan.day, plan.title, platform);
+      const prompt = buildCreativePrompt(productInfo, plan.day, plan.title, platform, campaignMedia);
       const response = await callLLM(settings, prompt);
       creatives = parseJSONResponse<Array<{ angle: string; hookingText: string; copyText: string; imagePrompt?: string }>>(response.content);
     } catch {
@@ -156,8 +167,16 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   if (options.generateImage && settings.geminiApiKey) {
     await addEvent(campaignId, 'yuna', '유나', 'creative', `AI 이미지 생성을 시작합니다! Gemini Nano Banana 2로 각 소재별 비주얼을 만들게요.`);
 
+    if (imageRefs.length > 0) {
+      await addEvent(campaignId, 'yuna', '유나', 'creative', `CEO가 제공한 참고 이미지 ${imageRefs.length}개의 스타일과 분위기를 반영합니다!`);
+    }
+
+    // 참고 이미지 설명을 프롬프트에 추가
+    const refContext = imageRefs.map((m) => m.parsedContent?.description).filter(Boolean).join(', ');
+
     for (const row of allCreativeRows) {
-      const prompt = (row.image_prompt as string) || `Marketing image for ${row.angle} angle, ${productInfo.name}`;
+      let prompt = (row.image_prompt as string) || `Marketing image for ${row.angle} angle, ${productInfo.name}`;
+      if (refContext) prompt += `. Reference style: ${refContext}`;
       const result = await generateImage(settings.geminiApiKey, prompt);
 
       if (result) {
@@ -176,16 +195,22 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   if (options.generateVideo && settings.runwayApiKey) {
     await addEvent(campaignId, 'doha', '도하', 'creative', `AI 동영상 생성을 시작합니다! Runway Gen-4로 숏폼 영상을 만들게요.`);
 
-    // 상위 3개 소재만 동영상 생성 (비용 절약)
+    if (videoSources.length > 0) {
+      await addEvent(campaignId, 'doha', '도하', 'creative', `CEO가 업로드한 동영상/이미지 소스 ${videoSources.length}개를 활용합니다!`);
+    }
+
     const videoTargets = allCreativeRows.slice(0, 3);
     let videoCount = 0;
 
-    for (const row of videoTargets) {
-      const imageUrl = row.image_url as string | undefined;
+    for (let i = 0; i < videoTargets.length; i++) {
+      const row = videoTargets[i];
+      // CEO 업로드 소스가 있으면 우선 사용, 없으면 AI 생성 이미지 사용
+      const sourceMedia = videoSources[i % videoSources.length];
+      const inputUrl = sourceMedia?.file_url || (row.image_url as string | undefined);
       const prompt = `${productInfo.name} marketing video. ${row.angle} angle. Hook: ${row.hooking_text}. Cinematic, modern, engaging social media ad style.`;
 
-      if (imageUrl) {
-        const videoUrl = await generateVideo(settings.runwayApiKey, imageUrl, prompt);
+      if (inputUrl) {
+        const videoUrl = await generateVideo(settings.runwayApiKey, inputUrl, prompt);
         if (videoUrl) {
           await supabase.from('creatives').update({ video_url: videoUrl }).eq('id', row.id);
           videoCount++;
@@ -193,7 +218,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
       }
     }
 
-    await addEvent(campaignId, 'doha', '도하', 'creative', `AI 숏폼 동영상 ${videoCount}개 생성 완료! 이미지 기반 5초 영상입니다.`);
+    await addEvent(campaignId, 'doha', '도하', 'creative', `AI 숏폼 동영상 ${videoCount}개 생성 완료!${videoSources.length > 0 ? ' CEO 소스 영상을 활용했습니다.' : ' 이미지 기반 5초 영상입니다.'}`);
   } else {
     await addEvent(campaignId, 'doha', '도하', 'creative', `1위 소재 기반 숏폼 영상 컨셉 기획 중...`);
   }

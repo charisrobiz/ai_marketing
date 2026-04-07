@@ -1,7 +1,21 @@
-import type { ProductInfo } from '@/types';
-import { CATEGORY_LABELS } from '@/types';
+import type { ProductInfo, CampaignMedia, MediaContent } from '@/types';
+import { CATEGORY_LABELS, MEDIA_USAGE_LABELS } from '@/types';
 
-export function buildPlanPrompt(product: ProductInfo): string {
+function buildMediaContext(media: CampaignMedia[]): string {
+  if (!media || media.length === 0) return '';
+
+  const lines = media.map((m) => {
+    const parsed: MediaContent | null = m.content ? JSON.parse(m.content) : null;
+    const desc = parsed?.description || m.file_name || '설명 없음';
+    const usage = parsed?.usage_intent ? MEDIA_USAGE_LABELS[parsed.usage_intent] : '일반';
+    const typeLabel = m.type === 'video' ? '동영상' : m.type === 'screenshot' ? '이미지' : '문서';
+    return `- [${typeLabel}] ${desc} (용도: ${usage})`;
+  });
+
+  return `\n[CEO 제공 참고 미디어]\n${lines.join('\n')}\n위 미디어의 내용과 분위기를 참고하여 소재를 제작하세요.\n`;
+}
+
+export function buildPlanPrompt(product: ProductInfo, media?: CampaignMedia[]): string {
   const categoryLabel = CATEGORY_LABELS[product.category];
   const additionalInfo = Object.entries(product.additionalAnswers || {})
     .filter(([, v]) => v)
@@ -17,7 +31,7 @@ export function buildPlanPrompt(product: ProductInfo): string {
 - 설명: ${product.description || '없음'}
 - 타겟 고객: ${product.targetAudience || '없음'}
 - 핵심 차별점: ${product.uniqueValue || '없음'}
-${additionalInfo ? `\n[심층 정보]\n${additionalInfo}` : ''}
+${additionalInfo ? `\n[심층 정보]\n${additionalInfo}` : ''}${media ? buildMediaContext(media) : ''}
 
 [전략 분석 요구사항]
 다양한 마케팅 기법을 종합적으로 분석하여 이 제품에 가장 효과적인 전략 조합을 찾아주세요:
@@ -56,7 +70,8 @@ export function buildCreativePrompt(
   product: ProductInfo,
   day: number,
   dayTitle: string,
-  platform: string
+  platform: string,
+  media?: CampaignMedia[]
 ): string {
   return `당신은 세계 최고의 크리에이티브 팀입니다.
 다음 제품의 ${platform} 마케팅 소재를 생성해주세요.
@@ -65,7 +80,7 @@ export function buildCreativePrompt(
 - 이름: ${product.name}
 - 설명: ${product.description || product.uniqueValue || ''}
 - 타겟: ${product.targetAudience || '일반 소비자'}
-
+${media ? buildMediaContext(media) : ''}
 [오늘의 마케팅 플랜]
 - Day ${day}: ${dayTitle}
 - 플랫폼: ${platform}

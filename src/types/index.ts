@@ -60,6 +60,41 @@ export interface Campaign {
   abTests?: ABTest[];
 }
 
+// === Media Types ===
+export type MediaUsageIntent =
+  | 'ad_image_reference'
+  | 'video_source'
+  | 'copy_reference'
+  | 'background_source'
+  | 'app_screenshot';
+
+export const MEDIA_USAGE_LABELS: Record<MediaUsageIntent, string> = {
+  ad_image_reference: '광고 이미지 참고자료',
+  video_source: '동영상 생성 소스',
+  copy_reference: '카피 작성 참고',
+  background_source: '배경/소스 이미지',
+  app_screenshot: '앱 스크린샷',
+};
+
+export interface MediaContent {
+  description: string;
+  usage_intent: MediaUsageIntent;
+}
+
+export interface CampaignMedia {
+  id: string;
+  campaign_id: string;
+  type: string;
+  file_url: string | null;
+  file_name: string | null;
+  file_size: number | null;
+  mime_type: string | null;
+  content: string | null;
+  sort_order: number;
+  created_at: string;
+  parsedContent?: MediaContent | null;
+}
+
 // === Marketing Plan Types ===
 export interface DailyPlan {
   day: number;
