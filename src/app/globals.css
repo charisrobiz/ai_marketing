@@ -76,3 +76,24 @@ body {
 .status-working { background: #4ade80; box-shadow: 0 0 8px rgba(74, 222, 128, 0.5); }
 .status-idle { background: var(--text-secondary); }
 .status-reviewing { background: #fbbf24; box-shadow: 0 0 8px rgba(251, 191, 36, 0.5); }
+
+/* Manual markdown styles */
+.manual-content h1 { font-size: 1.5rem; font-weight: 700; margin: 1.5rem 0 0.75rem; color: #e8e8f0; }
+.manual-content h2 { font-size: 1.25rem; font-weight: 700; margin: 1.5rem 0 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.08); color: #e8e8f0; }
+.manual-content h3 { font-size: 1rem; font-weight: 600; margin: 1rem 0 0.4rem; color: #c0c0d0; }
+.manual-content h4 { font-size: 0.875rem; font-weight: 600; margin: 0.75rem 0 0.3rem; color: #a0a0b8; }
+.manual-content p { font-size: 0.8125rem; line-height: 1.7; color: #9898b0; margin: 0.4rem 0; }
+.manual-content ul, .manual-content ol { font-size: 0.8125rem; color: #9898b0; padding-left: 1.25rem; margin: 0.4rem 0; }
+.manual-content li { margin: 0.2rem 0; line-height: 1.6; }
+.manual-content strong { color: #e0e0f0; font-weight: 600; }
+.manual-content code { font-size: 0.75rem; background: rgba(255,255,255,0.06); padding: 0.1rem 0.35rem; border-radius: 4px; color: #a78bfa; }
+.manual-content pre { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 0.75rem 1rem; overflow-x: auto; margin: 0.5rem 0; }
+.manual-content pre code { background: none; padding: 0; color: #c0c0d8; }
+.manual-content blockquote { border-left: 3px solid rgba(78,205,196,0.4); padding-left: 0.75rem; margin: 0.5rem 0; color: rgba(78,205,196,0.8); font-size: 0.8125rem; }
+.manual-content hr { border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 1.25rem 0; }
+.manual-content a { color: #667eea; text-decoration: underline; text-underline-offset: 2px; }
+.manual-content a:hover { color: #8b9cf7; }
+.manual-content table { width: 100%; font-size: 0.75rem; border-collapse: collapse; margin: 0.5rem 0; }
+.manual-content th { text-align: left; padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.1); color: #b0b0c8; font-weight: 600; }
+.manual-content td { padding: 0.4rem 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.04); color: #9898b0; }
+.manual-content tr:hover td { background: rgba(255,255,255,0.02); }

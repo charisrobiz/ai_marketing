@@ -604,6 +604,11 @@ export default function AdminPage() {
 }
 
 // === Admin Manual Component ===
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const ReactMarkdown = require('react-markdown').default;
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const remarkGfm = require('remark-gfm').default;
+
 function AdminManual() {
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState('');
@@ -627,13 +632,6 @@ function AdminManual() {
     link.download = 'AutoGrowth_관리자_매뉴얼.md';
     link.click();
   };
-
-  const sections = content.split(/^## /m).filter(Boolean).map((s) => {
-    const lines = s.split('\n');
-    const title = lines[0].trim();
-    const body = lines.slice(1).join('\n').trim();
-    return { title, body };
-  });
 
   return (
     <div className="glass-card p-6 mt-6">
@@ -668,63 +666,10 @@ function AdminManual() {
               <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-              {sections.map((section, i) => (
-                <ManualSection key={i} title={section.title} body={section.body} />
-              ))}
+            <div className="manual-content max-h-[70vh] overflow-y-auto pr-2">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
             </div>
           )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ManualSection({ title, body }: { title: string; body: string }) {
-  const [expanded, setExpanded] = useState(false);
-
-  // Simple markdown rendering
-  const renderBody = (text: string) => {
-    return text.split('\n').map((line, i) => {
-      // Headers
-      if (line.startsWith('### ')) return <h4 key={i} className="text-sm font-semibold text-white mt-3 mb-1">{line.replace('### ', '')}</h4>;
-      if (line.startsWith('#### ')) return <h5 key={i} className="text-xs font-semibold text-gray-300 mt-2 mb-1">{line.replace('#### ', '')}</h5>;
-      // Table rows
-      if (line.startsWith('|') && !line.includes('---')) {
-        const cells = line.split('|').filter(Boolean).map(c => c.trim());
-        return (
-          <div key={i} className="grid gap-2 text-xs py-1 border-b border-white/5" style={{ gridTemplateColumns: `repeat(${cells.length}, 1fr)` }}>
-            {cells.map((cell, j) => <span key={j} className={i === 0 ? 'text-gray-400 font-medium' : 'text-gray-300'}>{cell}</span>)}
-          </div>
-        );
-      }
-      if (line.includes('---') && line.startsWith('|')) return null;
-      // Blockquote
-      if (line.startsWith('> ')) return <p key={i} className="text-xs text-cyan-400/80 pl-3 border-l-2 border-cyan-500/30 my-1">{line.replace('> ', '')}</p>;
-      // List items
-      if (line.startsWith('- ')) return <p key={i} className="text-xs text-gray-400 pl-3 my-0.5">{'• ' + line.replace('- ', '')}</p>;
-      if (/^\d+\. /.test(line)) return <p key={i} className="text-xs text-gray-400 pl-3 my-0.5">{line}</p>;
-      // Horizontal rule
-      if (line === '---') return <hr key={i} className="border-white/5 my-2" />;
-      // Empty line
-      if (!line.trim()) return <div key={i} className="h-1" />;
-      // Regular text
-      return <p key={i} className="text-xs text-gray-400 leading-relaxed">{line}</p>;
-    });
-  };
-
-  return (
-    <div className="rounded-lg bg-white/[0.02] border border-white/5">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition-colors"
-      >
-        <span className="text-sm font-medium text-left">{title}</span>
-        {expanded ? <ChevronUp size={14} className="text-gray-500" /> : <ChevronDown size={14} className="text-gray-500" />}
-      </button>
-      {expanded && (
-        <div className="px-4 pb-4">
-          {renderBody(body)}
         </div>
       )}
     </div>
