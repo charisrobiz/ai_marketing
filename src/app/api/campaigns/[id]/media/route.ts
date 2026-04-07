@@ -98,3 +98,19 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
   return NextResponse.json({ mediaId, deleted: true });
 }
+
+// PATCH: 미디어 설명/용도 수정
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id: campaignId } = await params;
+  const body = await request.json();
+  const { mediaId, content } = body;
+
+  if (!mediaId) return NextResponse.json({ error: 'mediaId required' }, { status: 400 });
+
+  await supabase.from('campaign_media')
+    .update({ content })
+    .eq('id', mediaId)
+    .eq('campaign_id', campaignId);
+
+  return NextResponse.json({ mediaId, updated: true });
+}

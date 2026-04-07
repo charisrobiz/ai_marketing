@@ -12,7 +12,7 @@ import VotingArena from '@/components/campaign/VotingArena';
 import CardNewsPreview from '@/components/campaign/CardNewsPreview';
 import {
   ArrowLeft, Rocket, Loader2, MessageCircle, ClipboardList, Download,
-  Eye, BarChart3, Palette, Pause, Play, Trash2, Pencil, ChevronRight,
+  Eye, BarChart3, Palette, Pause, Play, Trash2, Pencil, ChevronRight, ImagePlus,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -246,7 +246,15 @@ export default function CampaignDetailPage() {
       </div>
 
       {/* Quick Links */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+        <Link href={`/campaign/${id}/media`}
+          className="glass-card p-4 flex items-center gap-3 hover:border-pink-500/30 transition-colors">
+          <ImagePlus className="w-5 h-5 text-pink-400" />
+          <div>
+            <p className="text-sm font-medium">미디어 관리</p>
+            <p className="text-[10px] text-gray-500">이미지·동영상·자료</p>
+          </div>
+        </Link>
         <Link href={`/campaign/${id}/approval`}
           className="glass-card p-4 flex items-center gap-3 hover:border-amber-500/30 transition-colors">
           <Palette className="w-5 h-5 text-amber-400" />
