@@ -46,6 +46,30 @@ export interface ProductInfo {
 export interface CampaignOptions {
   generateImage: boolean;
   generateVideo: boolean;
+  composeBanner: boolean;
+  figmaFileUrl: string;
+}
+
+// === Figma Template Types ===
+export interface FigmaPlaceholder {
+  name: string;
+  type: 'text' | 'image';
+  bounds: { x: number; y: number; w: number; h: number };
+  textStyle?: { fontSize: number; fontWeight: number; textAlign: string };
+}
+
+export interface FigmaFrame {
+  name: string;
+  nodeId: string;
+  width: number;
+  height: number;
+  imageUrl?: string;
+  placeholders: FigmaPlaceholder[];
+}
+
+export interface FigmaTemplate {
+  fileKey: string;
+  frames: FigmaFrame[];
 }
 
 export interface Campaign {
@@ -117,6 +141,7 @@ export interface Creative {
   imagePrompt?: string;
   imageUrl?: string;
   videoUrl?: string;
+  bannerUrl?: string;
   platform: string; // instagram, youtube, blog, tiktok
   createdAt: string;
 }

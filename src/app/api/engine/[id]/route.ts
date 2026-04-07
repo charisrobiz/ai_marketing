@@ -5,6 +5,8 @@ import { callLLM, parseJSONResponse } from '@/lib/ai/llmClient';
 import { JURY_PERSONAS } from '@/data/juryPersonas';
 import { generateImage } from '@/lib/media/imageGenerator';
 import { generateVideo } from '@/lib/media/videoGenerator';
+import { fetchFigmaTemplate } from '@/lib/media/figmaClient';
+import { composeBanner } from '@/lib/media/bannerComposer';
 import type { ProductInfo, CampaignOptions, CampaignMedia, MediaContent } from '@/types';
 
 async function getSettings() {
@@ -16,6 +18,7 @@ async function getSettings() {
     claudeApiKey: map['claudeApiKey'] || '',
     geminiApiKey: map['geminiApiKey'] || '',
     runwayApiKey: map['runwayApiKey'] || '',
+    figmaApiKey: map['figmaApiKey'] || '',
   };
 }
 
@@ -221,6 +224,48 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     await addEvent(campaignId, 'doha', '도하', 'creative', `AI 숏폼 동영상 ${videoCount}개 생성 완료!${videoSources.length > 0 ? ' CEO 소스 영상을 활용했습니다.' : ' 이미지 기반 5초 영상입니다.'}`);
   } else {
     await addEvent(campaignId, 'doha', '도하', 'creative', `1위 소재 기반 숏폼 영상 컨셉 기획 중...`);
+  }
+
+  // === Phase 2.7: Figma 배너 합성 ===
+  if (options.composeBanner && options.figmaFileUrl && settings.figmaApiKey && settings.geminiApiKey) {
+    await addEvent(campaignId, 'yuna', '유나', 'creative', `Figma 템플릿 기반 광고 배너 합성을 시작합니다!`);
+
+    const template = await fetchFigmaTemplate(settings.figmaApiKey, options.figmaFileUrl);
+
+    if (template && template.frames.length > 0) {
+      await addEvent(campaignId, 'yuna', '유나', 'creative', `Figma 템플릿에서 ${template.frames.length}개 플랫폼 프레임을 발견했습니다: ${template.frames.map(f => f.name).join(', ')}`);
+
+      // 상위 3개 소재 × 각 프레임
+      const bannerTargets = allCreativeRows.slice(0, 3);
+      let bannerCount = 0;
+
+      for (const row of bannerTargets) {
+        for (const frame of template.frames) {
+          const result = await composeBanner(settings.geminiApiKey, frame, {
+            hookingText: row.hooking_text as string,
+            copyText: row.copy_text as string,
+            productImageUrl: (row.image_url as string) || undefined,
+          });
+
+          if (result) {
+            const fileName = `${campaignId}/${row.id}-banner-${frame.name.toLowerCase()}.png`;
+            const buffer = Buffer.from(result.imageBase64, 'base64');
+            await supabase.storage.from('campaign-media').upload(fileName, buffer, { contentType: result.mimeType, upsert: true });
+            const { data: publicUrl } = supabase.storage.from('campaign-media').getPublicUrl(fileName);
+
+            // 첫 번째 프레임의 배너 URL을 대표로 저장
+            if (frame === template.frames[0]) {
+              await supabase.from('creatives').update({ banner_url: publicUrl.publicUrl }).eq('id', row.id);
+            }
+            bannerCount++;
+          }
+        }
+      }
+
+      await addEvent(campaignId, 'yuna', '유나', 'creative', `Figma 광고 배너 ${bannerCount}개 합성 완료! 플랫폼별 배너가 준비되었습니다.`);
+    } else {
+      await addEvent(campaignId, 'yuna', '유나', 'system', `Figma 템플릿을 읽을 수 없습니다. URL과 API 키를 확인해주세요.`);
+    }
   }
 
   // === Phase 3: 투표 ===

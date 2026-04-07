@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/store/useStore';
 import { CATEGORY_LABELS, type ProductCategory } from '@/types';
-import { ArrowRight, ArrowLeft, Sparkles, CheckCircle, Image, Video, AlertTriangle } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Sparkles, CheckCircle, Image, Video, AlertTriangle, Layers } from 'lucide-react';
 import MediaUploadStep from '@/components/campaign/MediaUploadStep';
 import type { UploadedMedia } from '@/components/campaign/MediaUploadStep';
 
@@ -80,6 +80,8 @@ export default function NewCampaignPage() {
   const [mediaFiles, setMediaFiles] = useState<UploadedMedia[]>([]);
   const [generateImage, setGenerateImage] = useState(false);
   const [generateVideo, setGenerateVideo] = useState(false);
+  const [composeBanner, setComposeBanner] = useState(false);
+  const [figmaFileUrl, setFigmaFileUrl] = useState('');
   const [apiWarning, setApiWarning] = useState('');
 
   // 캠페인 ID를 미리 생성 (미디어 업로드에 필요)
@@ -118,7 +120,7 @@ export default function NewCampaignPage() {
         uniqueValue,
         additionalAnswers: answers,
       },
-      options: { generateImage, generateVideo },
+      options: { generateImage, generateVideo, composeBanner, figmaFileUrl },
       status: 'planning' as const,
       createdAt: new Date().toISOString(),
     };
@@ -304,6 +306,41 @@ export default function NewCampaignPage() {
                     <span className="text-xs text-gray-500 ml-2">Runway Gen-4 &middot; ~$0.25/5초</span>
                   </div>
                 </label>
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input type="checkbox" checked={composeBanner} onChange={(e) => {
+                    const checked = e.target.checked;
+                    if (checked && !settings.figmaApiKey) {
+                      setApiWarning('Figma 배너 합성을 위해 관리자 설정에서 Figma API 키를 먼저 등록해주세요.');
+                      return;
+                    }
+                    if (checked && !settings.geminiApiKey) {
+                      setApiWarning('배너 합성에 Gemini API 키가 필요합니다. 관리자 설정에서 등록해주세요.');
+                      return;
+                    }
+                    setComposeBanner(checked);
+                    setApiWarning('');
+                  }}
+                    className="w-4 h-4 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0 cursor-pointer" />
+                  <Layers size={18} className="text-cyan-400" />
+                  <div>
+                    <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Figma 배너 합성</span>
+                    <span className="text-xs text-gray-500 ml-2">템플릿 기반 광고 배너 자동 생성</span>
+                  </div>
+                </label>
+                {composeBanner && (
+                  <div className="ml-7 mt-1">
+                    <input
+                      type="text"
+                      value={figmaFileUrl}
+                      onChange={(e) => setFigmaFileUrl(e.target.value)}
+                      placeholder="Figma 파일 URL (예: https://figma.com/design/ABC123/...)"
+                      className="w-full px-3 py-2 rounded-lg text-xs bg-white/5 border border-white/10 focus:border-cyan-500/50 focus:outline-none"
+                    />
+                    <p className="text-[10px] text-gray-600 mt-1">
+                      템플릿에 hooking_text, copy_text, product_image 등 이름의 레이어를 만들어두세요.
+                    </p>
+                  </div>
+                )}
               </div>
               {apiWarning && (
                 <div className="mt-3 flex items-center gap-2 text-amber-400 text-xs bg-amber-500/10 px-3 py-2 rounded-lg">
