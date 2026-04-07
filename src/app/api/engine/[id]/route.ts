@@ -3,7 +3,9 @@ import { supabase } from '@/lib/db/supabase';
 import { buildPlanPrompt, buildCreativePrompt, buildJuryVotePrompt } from '@/lib/ai/prompts';
 import { callLLM, parseJSONResponse } from '@/lib/ai/llmClient';
 import { JURY_PERSONAS } from '@/data/juryPersonas';
-import type { ProductInfo } from '@/types';
+import { generateImage } from '@/lib/media/imageGenerator';
+import { generateVideo } from '@/lib/media/videoGenerator';
+import type { ProductInfo, CampaignOptions } from '@/types';
 
 async function getSettings() {
   const { data: rows } = await supabase.from('settings').select('key, value');
@@ -13,6 +15,7 @@ async function getSettings() {
     openaiApiKey: map['openaiApiKey'] || '',
     claudeApiKey: map['claudeApiKey'] || '',
     geminiApiKey: map['geminiApiKey'] || '',
+    runwayApiKey: map['runwayApiKey'] || '',
   };
 }
 
@@ -49,6 +52,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   if (!campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
 
   const productInfo: ProductInfo = campaign.product_info as unknown as ProductInfo;
+  const options: CampaignOptions = (campaign.options as unknown as CampaignOptions) || { generateImage: false, generateVideo: false };
   const settings = await getSettings();
 
   // === 하나(본부장) 니치밴딩 브리핑 ===
@@ -147,7 +151,52 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   await updateTask(taskSeo, 'completed', `${totalCreatives}개 카피 작성`);
   await updateTask(taskVisual, 'completed', `${totalCreatives}개 비주얼 감수`);
   await updateTask(taskMotion, 'in_progress');
-  await addEvent(campaignId, 'doha', '도하', 'creative', `1위 소재 기반 숏폼 영상 컨셉 기획 중...`);
+
+  // === Phase 2.5: 이미지/동영상 생성 ===
+  if (options.generateImage && settings.geminiApiKey) {
+    await addEvent(campaignId, 'yuna', '유나', 'creative', `AI 이미지 생성을 시작합니다! Gemini Nano Banana 2로 각 소재별 비주얼을 만들게요.`);
+
+    for (const row of allCreativeRows) {
+      const prompt = (row.image_prompt as string) || `Marketing image for ${row.angle} angle, ${productInfo.name}`;
+      const result = await generateImage(settings.geminiApiKey, prompt);
+
+      if (result) {
+        const fileName = `${campaignId}/${row.id}-image.png`;
+        const buffer = Buffer.from(result.imageBase64, 'base64');
+        await supabase.storage.from('campaign-media').upload(fileName, buffer, { contentType: result.mimeType, upsert: true });
+        const { data: publicUrl } = supabase.storage.from('campaign-media').getPublicUrl(fileName);
+        await supabase.from('creatives').update({ image_url: publicUrl.publicUrl }).eq('id', row.id);
+        row.image_url = publicUrl.publicUrl;
+      }
+    }
+
+    await addEvent(campaignId, 'yuna', '유나', 'creative', `AI 이미지 ${allCreativeRows.length}개 생성 완료! 각 소재에 비주얼이 적용되었습니다.`);
+  }
+
+  if (options.generateVideo && settings.runwayApiKey) {
+    await addEvent(campaignId, 'doha', '도하', 'creative', `AI 동영상 생성을 시작합니다! Runway Gen-4로 숏폼 영상을 만들게요.`);
+
+    // 상위 3개 소재만 동영상 생성 (비용 절약)
+    const videoTargets = allCreativeRows.slice(0, 3);
+    let videoCount = 0;
+
+    for (const row of videoTargets) {
+      const imageUrl = row.image_url as string | undefined;
+      const prompt = `${productInfo.name} marketing video. ${row.angle} angle. Hook: ${row.hooking_text}. Cinematic, modern, engaging social media ad style.`;
+
+      if (imageUrl) {
+        const videoUrl = await generateVideo(settings.runwayApiKey, imageUrl, prompt);
+        if (videoUrl) {
+          await supabase.from('creatives').update({ video_url: videoUrl }).eq('id', row.id);
+          videoCount++;
+        }
+      }
+    }
+
+    await addEvent(campaignId, 'doha', '도하', 'creative', `AI 숏폼 동영상 ${videoCount}개 생성 완료! 이미지 기반 5초 영상입니다.`);
+  } else {
+    await addEvent(campaignId, 'doha', '도하', 'creative', `1위 소재 기반 숏폼 영상 컨셉 기획 중...`);
+  }
 
   // === Phase 3: 투표 ===
   await updateCampaignStatus(campaignId, 'voting');

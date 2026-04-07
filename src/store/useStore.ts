@@ -152,6 +152,7 @@ const DEFAULT_SETTINGS: AdminSettings = {
   claudeApiKey: '',
   geminiApiKey: '',
   figmaApiKey: '',
+  runwayApiKey: '',
   metaAdsToken: '',
   metaAdAccountId: '',
   googleAdsToken: '',

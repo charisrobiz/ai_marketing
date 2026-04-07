@@ -43,9 +43,15 @@ export interface ProductInfo {
   additionalAnswers: Record<string, string>;
 }
 
+export interface CampaignOptions {
+  generateImage: boolean;
+  generateVideo: boolean;
+}
+
 export interface Campaign {
   id: string;
   productInfo: ProductInfo;
+  options?: CampaignOptions;
   status: 'intake' | 'planning' | 'creating' | 'voting' | 'testing' | 'deploying' | 'active' | 'paused' | 'completed';
   createdAt: string;
   dailyPlan?: DailyPlan[];
@@ -75,6 +81,7 @@ export interface Creative {
   hookingText: string;
   imagePrompt?: string;
   imageUrl?: string;
+  videoUrl?: string;
   platform: string; // instagram, youtube, blog, tiktok
   createdAt: string;
 }
@@ -140,6 +147,8 @@ export interface AdminSettings {
   geminiApiKey: string;
   // Design
   figmaApiKey: string;
+  // Media Generation
+  runwayApiKey: string;
   // Ads
   metaAdsToken: string;
   metaAdAccountId: string;

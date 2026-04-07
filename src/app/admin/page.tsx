@@ -333,6 +333,31 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    title: '미디어 생성',
+    description: 'AI 이미지 생성(Gemini)은 LLM API의 Gemini 키를 사용합니다. 동영상 생성에는 Runway 키가 필요합니다.',
+    color: 'text-pink-400',
+    fields: [
+      {
+        key: 'runwayApiKey', label: 'Runway API Key',
+        description: 'Runway Gen-4 Turbo 동영상 생성', placeholder: 'key_...',
+        guide: {
+          title: 'Runway API Key 발급 방법',
+          steps: [
+            '1. Runway 개발자 포털에 로그인합니다.',
+            '2. 좌측 메뉴에서 "API Keys" 클릭.',
+            '3. "Create API Key" 버튼 클릭.',
+            '4. 키 이름을 입력하고 생성.',
+            '5. 생성된 키를 복사하여 여기에 붙여넣기.',
+            '※ API 사용량에 따라 과금됩니다.',
+            '※ 이미지 생성은 위 AI LLM API의 Gemini 키를 사용합니다.',
+          ],
+          url: 'https://dev.runwayml.com/',
+          urlLabel: 'Runway Developer Portal',
+        },
+      },
+    ],
+  },
+  {
     title: '디자인',
     description: 'Figma 연동 자동 디자인 합성에 사용됩니다.',
     color: 'text-violet-400',

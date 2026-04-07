@@ -24,11 +24,12 @@ export async function GET() {
 // POST: 새 캠페인 생성
 export async function POST(request: Request) {
   const body = await request.json();
-  const { id, productInfo, status } = body;
+  const { id, productInfo, options, status } = body;
 
   const { error } = await supabase.from('campaigns').insert({
     id,
     product_info: productInfo,
+    options: options || { generateImage: false, generateVideo: false },
     status: status || 'planning',
   });
 

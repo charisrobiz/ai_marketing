@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/store/useStore';
 import { CATEGORY_LABELS, type ProductCategory } from '@/types';
-import { ArrowRight, ArrowLeft, Sparkles, CheckCircle } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Sparkles, CheckCircle, Image, Video, AlertTriangle } from 'lucide-react';
 
 // AI가 카테고리별로 생성하는 심층 질문 (실제로는 LLM이 생성)
 const CATEGORY_QUESTIONS: Record<ProductCategory, { question: string; placeholder: string }[]> = {
@@ -76,6 +76,31 @@ export default function NewCampaignPage() {
   const [targetAudience, setTargetAudience] = useState('');
   const [uniqueValue, setUniqueValue] = useState('');
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [generateImage, setGenerateImage] = useState(false);
+  const [generateVideo, setGenerateVideo] = useState(false);
+  const [apiWarning, setApiWarning] = useState('');
+
+  const { settings } = useStore();
+
+  const handleMediaToggle = (type: 'image' | 'video', checked: boolean) => {
+    if (type === 'image') {
+      setGenerateImage(checked);
+      if (checked && !settings.geminiApiKey) {
+        setApiWarning('이미지 생성을 위해 관리자 설정에서 Gemini API 키를 먼저 등록해주세요.');
+        setGenerateImage(false);
+        return;
+      }
+    }
+    if (type === 'video') {
+      setGenerateVideo(checked);
+      if (checked && !settings.runwayApiKey) {
+        setApiWarning('동영상 생성을 위해 관리자 설정에서 Runway API 키를 먼저 등록해주세요.');
+        setGenerateVideo(false);
+        return;
+      }
+    }
+    setApiWarning('');
+  };
 
   const handleCreate = () => {
     if (!category || !name) return;
@@ -90,17 +115,17 @@ export default function NewCampaignPage() {
         uniqueValue,
         additionalAnswers: answers,
       },
+      options: { generateImage, generateVideo },
       status: 'planning' as const,
       createdAt: new Date().toISOString(),
     };
 
     addCampaign(campaign);
 
-    // DB에도 저장
     fetch('/api/campaigns', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: campaign.id, productInfo: campaign.productInfo, status: campaign.status }),
+      body: JSON.stringify({ id: campaign.id, productInfo: campaign.productInfo, options: campaign.options, status: campaign.status }),
     }).catch(() => {});
 
     router.push(`/campaign/${campaign.id}`);
@@ -261,10 +286,51 @@ export default function NewCampaignPage() {
                 <span className="text-right max-w-xs">{uniqueValue || '-'}</span>
               </div>
             </div>
-            <div className="mt-6 p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+            {/* 미디어 생성 옵션 */}
+            <div className="mt-6 p-4 rounded-lg bg-white/5 border border-white/10">
+              <h3 className="text-sm font-semibold mb-3">미디어 생성 옵션</h3>
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={generateImage}
+                    onChange={(e) => handleMediaToggle('image', e.target.checked)}
+                    className="w-4 h-4 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0 cursor-pointer"
+                  />
+                  <Image size={18} className="text-green-400" />
+                  <div>
+                    <span className="text-sm text-gray-300 group-hover:text-white transition-colors">AI 이미지 생성</span>
+                    <span className="text-xs text-gray-500 ml-2">Gemini Nano Banana 2 &middot; ~$0.04/장</span>
+                  </div>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={generateVideo}
+                    onChange={(e) => handleMediaToggle('video', e.target.checked)}
+                    className="w-4 h-4 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0 cursor-pointer"
+                  />
+                  <Video size={18} className="text-purple-400" />
+                  <div>
+                    <span className="text-sm text-gray-300 group-hover:text-white transition-colors">AI 동영상 생성</span>
+                    <span className="text-xs text-gray-500 ml-2">Runway Gen-4 Turbo &middot; ~$0.25/5초</span>
+                  </div>
+                </label>
+              </div>
+              {apiWarning && (
+                <div className="mt-3 flex items-center gap-2 text-amber-400 text-xs bg-amber-500/10 px-3 py-2 rounded-lg">
+                  <AlertTriangle size={14} />
+                  {apiWarning}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
               <p className="text-sm text-blue-400">
-                캠페인을 시작하면 마쥬와 코쥬가 즉시 30일 마케팅 플랜을 생성하고,
+                캠페인을 시작하면 AI 팀이 즉시 30일 마케팅 플랜을 생성하고,
                 크리에이티브 소재 제작을 시작합니다.
+                {generateImage && ' 각 소재에 AI 이미지가 자동 생성됩니다.'}
+                {generateVideo && ' 이미지 기반 숏폼 동영상도 함께 제작됩니다.'}
               </p>
             </div>
           </div>
