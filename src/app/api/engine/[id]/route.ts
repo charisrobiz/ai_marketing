@@ -138,7 +138,10 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   await addEvent(campaignId, 'doha', '도하', 'chat', `유나님 비주얼 코드 나오면 UGC 챌린지용 모션 템플릿도 바로 기획합니다!`);
 
   const selectedPlans = plans.slice(0, 3);
-  const platforms = ['instagram', 'tiktok', 'youtube'];
+  // 등록된 채널 기반으로 플랫폼 선택 (없으면 기본 3개)
+  const platforms = registeredChannels.length > 0 ? registeredChannels : ['instagram', 'tiktok', 'youtube'];
+  await addEvent(campaignId, 'hana', '하나', 'chat', `타겟 채널: ${platforms.join(', ')}. ${registeredChannels.length > 0 ? '등록된 채널 기반으로' : '기본 채널로'} 소재를 제작합니다.`);
+
   let totalCreatives = 0;
   const allCreativeRows: Array<Record<string, unknown>> = [];
 

@@ -5,7 +5,7 @@
 
 CREATE TABLE IF NOT EXISTS social_channels (
   id TEXT PRIMARY KEY,
-  platform TEXT NOT NULL CHECK (platform IN ('instagram', 'tiktok', 'youtube', 'x', 'facebook', 'blog')),
+  platform TEXT NOT NULL CHECK (platform IN ('instagram', 'tiktok', 'youtube', 'x', 'facebook', 'threads', 'blog', 'kakao', 'pinterest')),
   status TEXT NOT NULL DEFAULT 'none' CHECK (status IN ('none', 'registered', 'ai_recommended')),
   account_id TEXT,
   account_url TEXT,

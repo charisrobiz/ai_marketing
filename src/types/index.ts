@@ -95,15 +95,103 @@ export interface Campaign {
 }
 
 // === Social Channel Types ===
-export type SocialPlatform = 'instagram' | 'tiktok' | 'youtube' | 'x' | 'facebook' | 'blog';
+export type SocialPlatform = 'instagram' | 'tiktok' | 'youtube' | 'x' | 'facebook' | 'threads' | 'blog' | 'kakao' | 'pinterest';
 
-export const SOCIAL_PLATFORM_CONFIG: Record<SocialPlatform, { label: string; emoji: string; color: string; bioLimit: number }> = {
-  instagram: { label: 'Instagram', emoji: '📸', color: 'text-pink-400', bioLimit: 150 },
-  tiktok: { label: 'TikTok', emoji: '🎵', color: 'text-cyan-400', bioLimit: 80 },
-  youtube: { label: 'YouTube', emoji: '▶️', color: 'text-red-400', bioLimit: 1000 },
-  x: { label: 'X (Twitter)', emoji: '𝕏', color: 'text-gray-300', bioLimit: 160 },
-  facebook: { label: 'Facebook', emoji: '👤', color: 'text-blue-400', bioLimit: 255 },
-  blog: { label: '블로그', emoji: '📝', color: 'text-green-400', bioLimit: 200 },
+export interface PlatformConfig {
+  label: string;
+  emoji: string;
+  color: string;
+  bioLimit: number;
+  copyTone: string;
+  copyMaxLength: number;
+  formats: string[];
+  hashtagStyle: string;
+  bestPostTime: string;
+  kpi: string;
+}
+
+export const SOCIAL_PLATFORM_CONFIG: Record<SocialPlatform, PlatformConfig> = {
+  instagram: {
+    label: 'Instagram', emoji: '📸', color: 'text-pink-400', bioLimit: 150,
+    copyTone: '감성적, 비주얼 중심, 이모지 활용, 스토리텔링',
+    copyMaxLength: 2200,
+    formats: ['피드 이미지(1:1)', '릴스(9:16)', '캐러셀(1:1 슬라이드)', '스토리(9:16)'],
+    hashtagStyle: '관련 해시태그 15~20개, 니치 해시태그 우선',
+    bestPostTime: '평일 오전 11시~오후 1시, 저녁 7시~9시',
+    kpi: '저장수, 공유수, 릴스 조회수',
+  },
+  tiktok: {
+    label: 'TikTok', emoji: '🎵', color: 'text-cyan-400', bioLimit: 80,
+    copyTone: 'B급 감성, 짧고 임팩트, 트렌드 밈 활용, 구어체',
+    copyMaxLength: 300,
+    formats: ['숏폼 영상(9:16, 15~60초)', '포토 슬라이드', '라이브'],
+    hashtagStyle: '트렌드 해시태그 3~5개 + 니치 2~3개',
+    bestPostTime: '평일 저녁 7시~10시, 주말 오전 10시~12시',
+    kpi: '완시율, 공유수, 댓글수',
+  },
+  youtube: {
+    label: 'YouTube', emoji: '▶️', color: 'text-red-400', bioLimit: 1000,
+    copyTone: '정보성, 스토리텔링, 클릭베이트 썸네일, SEO 제목',
+    copyMaxLength: 5000,
+    formats: ['숏츠(9:16, 60초)', '롱폼(16:9, 5~15분)', '커뮤니티 포스트'],
+    hashtagStyle: 'SEO 키워드 중심 태그 10~15개',
+    bestPostTime: '평일 오후 2시~4시, 주말 오전 10시',
+    kpi: 'CTR(클릭률), 평균 시청 시간, 구독 전환율',
+  },
+  x: {
+    label: 'X (Twitter)', emoji: '𝕏', color: 'text-gray-300', bioLimit: 160,
+    copyTone: '위트, 간결, 논쟁/의견, 실시간 트렌드 반응',
+    copyMaxLength: 280,
+    formats: ['텍스트 트윗(280자)', '이미지 트윗', '스레드(연결 트윗)', '투표'],
+    hashtagStyle: '핵심 해시태그 1~3개만, 과도한 태그 비추',
+    bestPostTime: '평일 오전 8시~10시, 점심 12시~1시',
+    kpi: '리트윗, 인용 트윗, 임프레션',
+  },
+  facebook: {
+    label: 'Facebook', emoji: '👤', color: 'text-blue-400', bioLimit: 255,
+    copyTone: '친근, 커뮤니티, 정보+감성 혼합, 질문형 유도',
+    copyMaxLength: 63206,
+    formats: ['피드 이미지', '릴스(9:16)', '그룹 포스트', '이벤트', '광고(Meta Ads)'],
+    hashtagStyle: '해시태그 3~5개, 과도하면 리치 감소',
+    bestPostTime: '평일 오전 9시~11시, 오후 1시~3시',
+    kpi: '참여율(좋아요+댓글+공유), 리치, 광고 ROAS',
+  },
+  threads: {
+    label: 'Threads', emoji: '🧵', color: 'text-purple-300', bioLimit: 150,
+    copyTone: '대화형, 솔직, 인사이트 공유, 인스타 연동 감성',
+    copyMaxLength: 500,
+    formats: ['텍스트(500자)', '이미지 포스트', '캐러셀'],
+    hashtagStyle: '키워드 태그 1~3개, 자연스러운 삽입',
+    bestPostTime: '평일 오전 7시~9시, 저녁 8시~10시',
+    kpi: '리포스트, 인용, 팔로워 증가율',
+  },
+  blog: {
+    label: '블로그', emoji: '📝', color: 'text-green-400', bioLimit: 200,
+    copyTone: 'SEO 최적화, 정보성, 교육형, 롱폼 콘텐츠, 키워드 밀도',
+    copyMaxLength: 50000,
+    formats: ['SEO 블로그(2000~3000자)', '리뷰/후기', '가이드/튜토리얼', '리스트형'],
+    hashtagStyle: '태그/카테고리 5~10개, 메타 키워드 설정',
+    bestPostTime: '평일 오전 6시~8시 (출근길 검색)',
+    kpi: '검색 순위, 방문자수, 체류 시간',
+  },
+  kakao: {
+    label: '카카오채널', emoji: '💬', color: 'text-yellow-400', bioLimit: 200,
+    copyTone: '친근, 혜택 중심, CTA 명확, 카드형 메시지',
+    copyMaxLength: 1000,
+    formats: ['피드(카드형)', '쿠폰/혜택', '1:1 챗봇', '비즈보드 광고'],
+    hashtagStyle: '해시태그 미사용, 키워드 검색 최적화',
+    bestPostTime: '평일 오전 10시~12시, 오후 2시~4시',
+    kpi: '친구 추가수, 메시지 오픈율, 쿠폰 사용률',
+  },
+  pinterest: {
+    label: 'Pinterest', emoji: '📌', color: 'text-red-300', bioLimit: 500,
+    copyTone: '영감, 비주얼, 검색 최적화, 라이프스타일',
+    copyMaxLength: 500,
+    formats: ['핀(2:3 세로)', '아이디어 핀(영상)', '보드 큐레이션'],
+    hashtagStyle: 'SEO 키워드 중심 설명, 해시태그보다 키워드 설명이 중요',
+    bestPostTime: '주말 오전, 평일 저녁 8시~11시',
+    kpi: '핀 저장수, 아웃바운드 클릭, 노출수',
+  },
 };
 
 export interface ChannelRecommendation {

@@ -110,8 +110,21 @@ export function buildCreativePrompt(
   platform: string,
   media?: CampaignMedia[]
 ): string {
+  const platformKey = platform as SocialPlatform;
+  const config = SOCIAL_PLATFORM_CONFIG[platformKey];
+
+  const platformGuide = config ? `
+[${config.label} 채널 전략]
+- 톤앤매너: ${config.copyTone}
+- 카피 길이: 최대 ${config.copyMaxLength}자
+- 콘텐츠 포맷: ${config.formats.join(', ')}
+- 해시태그: ${config.hashtagStyle}
+- 최적 게시 시간: ${config.bestPostTime}
+- 핵심 KPI: ${config.kpi}
+` : '';
+
   return `당신은 세계 최고의 크리에이티브 팀입니다.
-다음 제품의 ${platform} 마케팅 소재를 생성해주세요.
+다음 제품의 ${config?.label || platform} 마케팅 소재를 생성해주세요.
 
 [제품 정보]
 - 이름: ${product.name}
@@ -120,24 +133,31 @@ export function buildCreativePrompt(
 ${media ? buildMediaContext(media) : ''}
 [오늘의 마케팅 플랜]
 - Day ${day}: ${dayTitle}
-- 플랫폼: ${platform}
-
+- 플랫폼: ${config?.label || platform}
+${platformGuide}
 [요구사항]
-최소 비용으로 최대 효과를 낼 수 있는 5가지 앵글로 각각 카피를 생성하세요:
+위 채널 전략에 맞춰 5가지 앵글로 각각 카피를 생성하세요:
 1. 공감형: 타겟의 pain point에 직접 공감하여 "이건 내 얘기다" 반응 유도
 2. 바이럴형: B급 감성/밈/챌린지 요소로 자발적 공유 유도 (비용 0원 바이럴)
 3. 권위형: 전문성/수치/사회적 증거로 신뢰 구축
 4. UGC유도형: 사용자가 직접 콘텐츠를 만들고 공유하고 싶게 만드는 참여형
 5. 긴급형: FOMO/한정/시간 제한으로 즉각 행동 유도
 
-각 카피는 해당 플랫폼의 특성(인스타=비주얼, 틱톡=짧고 임팩트, 유튜브=스토리, 블로그=SEO)을 반영하세요.
+중요:
+- 카피 톤은 반드시 "${config?.copyTone || '플랫폼에 맞게'}" 스타일로 작성
+- 후킹 문구는 해당 플랫폼에서 스크롤을 멈추게 하는 스타일
+- 해시태그를 포함할 경우 "${config?.hashtagStyle || '적절히'}" 규칙을 따르세요
+- 추천 콘텐츠 포맷: ${config?.formats?.[0] || '기본 포맷'}
 
 반드시 아래 JSON 형식으로만 응답하세요:
 [
   {
     "angle": "공감형",
     "hookingText": "스크롤을 멈추게 하는 후킹 문구 (15자 이내)",
-    "copyText": "본문 카피 (50~100자)",
+    "copyText": "본문 카피 (채널 특성에 맞는 길이)",
+    "hashtags": "#관련해시태그 #목록",
+    "contentFormat": "추천 콘텐츠 포맷 (예: 릴스, 캐러셀, 숏폼 등)",
+    "bestPostTime": "추천 게시 시간",
     "imagePrompt": "이 카피에 어울리는 마케팅 이미지를 생성하기 위한 영문 프롬프트"
   }
 ]`;
