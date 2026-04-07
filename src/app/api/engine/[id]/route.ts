@@ -59,6 +59,10 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   const options: CampaignOptions = (campaign.options as unknown as CampaignOptions) || { generateImage: false, generateVideo: false };
   const settings = await getSettings();
 
+  // 소셜 채널 조회
+  const { data: channelRows } = await supabase.from('social_channels').select('*').in('status', ['registered', 'ai_recommended']);
+  const registeredChannels = (channelRows || []).map((c) => c.platform as string);
+
   // 캠페인 미디어 조회
   const { data: mediaRows } = await supabase.from('campaign_media').select('*').eq('campaign_id', campaignId).order('sort_order');
   const campaignMedia: CampaignMedia[] = (mediaRows || []).map((m) => ({
@@ -103,7 +107,10 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
 
   let plans;
   try {
-    const prompt = buildPlanPrompt(productInfo, campaignMedia, options.campaignType || 'standard');
+    const channelContext = registeredChannels.length > 0
+      ? `\n\n[보유 채널] ${registeredChannels.join(', ')}. 보유한 채널을 우선적으로 활용하세요.`
+      : '';
+    const prompt = buildPlanPrompt(productInfo, campaignMedia, options.campaignType || 'standard') + channelContext;
     const response = await callLLM(settings, prompt);
     plans = parseJSONResponse<Array<{ day: number; week: number; title: string; description: string; channels: string[]; target: string; goal: string }>>(response.content);
     await addEvent(campaignId, 'minseo', '민서', 'plan', `니치밴딩 기반 30일 플랜 완료! ${plans.length}일치 (${response.model})`);

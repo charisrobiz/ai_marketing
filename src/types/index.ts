@@ -94,6 +94,41 @@ export interface Campaign {
   abTests?: ABTest[];
 }
 
+// === Social Channel Types ===
+export type SocialPlatform = 'instagram' | 'tiktok' | 'youtube' | 'x' | 'facebook' | 'blog';
+
+export const SOCIAL_PLATFORM_CONFIG: Record<SocialPlatform, { label: string; emoji: string; color: string; bioLimit: number }> = {
+  instagram: { label: 'Instagram', emoji: '📸', color: 'text-pink-400', bioLimit: 150 },
+  tiktok: { label: 'TikTok', emoji: '🎵', color: 'text-cyan-400', bioLimit: 80 },
+  youtube: { label: 'YouTube', emoji: '▶️', color: 'text-red-400', bioLimit: 1000 },
+  x: { label: 'X (Twitter)', emoji: '𝕏', color: 'text-gray-300', bioLimit: 160 },
+  facebook: { label: 'Facebook', emoji: '👤', color: 'text-blue-400', bioLimit: 255 },
+  blog: { label: '블로그', emoji: '📝', color: 'text-green-400', bioLimit: 200 },
+};
+
+export interface ChannelRecommendation {
+  recommendedName: string;
+  recommendedId: string;
+  bio: string;
+  category: string;
+  profileImageConcept: string;
+  initialContentStrategy: string;
+  algorithmTips: string[];
+  seoKeywords: string[];
+  agentDiscussion: Array<{ agent: string; name: string; message: string }>;
+}
+
+export interface SocialChannel {
+  id: string;
+  platform: SocialPlatform;
+  status: 'none' | 'registered' | 'ai_recommended';
+  account_id?: string;
+  account_url?: string;
+  ai_recommendation?: ChannelRecommendation;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // === Media Types ===
 export type MediaUsageIntent =
   | 'ad_image_reference'

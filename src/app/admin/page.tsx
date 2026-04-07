@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
-import { Settings, Eye, EyeOff, Save, CheckCircle, HelpCircle, X, ExternalLink, BookOpen, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings, Eye, EyeOff, Save, CheckCircle, HelpCircle, X, ExternalLink, BookOpen, Download, ChevronDown, ChevronUp, Share2 } from 'lucide-react';
+import SocialChannelManager from '@/components/admin/SocialChannelManager';
 import type { AdminSettings } from '@/types';
 
 interface KeyGuide {
@@ -453,6 +454,18 @@ export default function AdminPage() {
           <h1 className="text-2xl font-bold">관리자 설정</h1>
           <p className="text-gray-500 text-sm mt-0.5">API 키 및 외부 서비스 연동을 관리합니다</p>
         </div>
+      </div>
+
+      {/* Social Channel Management */}
+      <div className="glass-card p-6 mb-6">
+        <div className="flex items-center gap-3 mb-4">
+          <Share2 className="w-5 h-5 text-pink-400" />
+          <div>
+            <h3 className="text-base font-bold">소셜 채널 관리</h3>
+            <p className="text-xs text-gray-500">마케팅 채널 등록 및 AI 계정 설정 추천</p>
+          </div>
+        </div>
+        <SocialChannelManager />
       </div>
 
       {/* Connection Status Overview */}

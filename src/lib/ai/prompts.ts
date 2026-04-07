@@ -1,5 +1,5 @@
-import type { ProductInfo, CampaignMedia, MediaContent, CampaignType } from '@/types';
-import { CATEGORY_LABELS, MEDIA_USAGE_LABELS, CAMPAIGN_TYPE_CONFIG } from '@/types';
+import type { ProductInfo, CampaignMedia, MediaContent, CampaignType, SocialPlatform } from '@/types';
+import { CATEGORY_LABELS, MEDIA_USAGE_LABELS, CAMPAIGN_TYPE_CONFIG, SOCIAL_PLATFORM_CONFIG } from '@/types';
 
 function buildMediaContext(media: CampaignMedia[]): string {
   if (!media || media.length === 0) return '';
@@ -167,4 +167,55 @@ export function buildJuryVotePrompt(
 1~10점으로 점수를 매기고, 20자 이내로 짧은 평가 코멘트를 작성하세요.
 반드시 아래 JSON 형식으로만 응답하세요:
 {"score": 8, "comment": "짧은 평가 코멘트"}`;
+}
+
+export function buildChannelSetupPrompt(
+  platform: SocialPlatform,
+  productInfo: { name: string; category: string; targetAudience: string; uniqueValue: string; description: string }
+): string {
+  const config = SOCIAL_PLATFORM_CONFIG[platform];
+
+  return `당신은 AI 마케팅 팀입니다. ${config.label} 마케팅 계정을 최적으로 설정하기 위한 회의를 진행합니다.
+
+[팀원]
+- 하나 (본부장): 전체 브랜드 전략, 일관성 검토
+- 민서 (마케팅 전략가): ${config.label} 알고리즘 분석, 타겟 도달 전략
+- 지우 (SEO 스페셜리스트): 검색 최적화, 키워드, 해시태그
+- 유나 (크리에이티브 디렉터): 프로필 비주얼, 썸네일, 브랜드 아이덴티티
+
+[브랜드 정보]
+- 제품명: ${productInfo.name}
+- 카테고리: ${productInfo.category}
+- 타겟 고객: ${productInfo.targetAudience || '일반 소비자'}
+- 핵심 차별점: ${productInfo.uniqueValue || productInfo.description || ''}
+
+[플랫폼 특성]
+- 플랫폼: ${config.label}
+- 바이오 글자수 제한: ${config.bioLimit}자
+
+[요구사항]
+1. 팀원들이 순서대로 의견을 제시합니다 (각자 전문 분야 관점)
+2. 본부장 하나가 최종 결정을 내립니다
+3. ${config.label} 알고리즘에 최적화된 계정 설정을 추천합니다
+4. 이름/ID는 기억하기 쉽고, 검색에 잘 노출되며, 브랜드와 일관성 있어야 합니다
+5. 바이오는 ${config.bioLimit}자 이내로, SEO 키워드를 자연스럽게 포함해야 합니다
+
+반드시 아래 JSON 형식으로만 응답하세요:
+{
+  "agentDiscussion": [
+    {"agent": "hana", "name": "하나", "message": "브랜드 전략 관점 의견..."},
+    {"agent": "minseo", "name": "민서", "message": "${config.label} 알고리즘 관점..."},
+    {"agent": "jiwoo", "name": "지우", "message": "SEO/검색 최적화 관점..."},
+    {"agent": "yuna", "name": "유나", "message": "비주얼/프로필 관점..."},
+    {"agent": "hana", "name": "하나", "message": "최종 결정 및 정리..."}
+  ],
+  "recommendedName": "계정 표시 이름",
+  "recommendedId": "@추천_아이디",
+  "bio": "${config.bioLimit}자 이내 SEO 최적화 바이오",
+  "category": "플랫폼에서 선택할 카테고리",
+  "profileImageConcept": "프로필 이미지 컨셉 설명",
+  "initialContentStrategy": "첫 2주 콘텐츠 전략 요약",
+  "algorithmTips": ["알고리즘 팁1", "알고리즘 팁2", "알고리즘 팁3"],
+  "seoKeywords": ["키워드1", "키워드2", "키워드3", "키워드4", "키워드5"]
+}`;
 }
