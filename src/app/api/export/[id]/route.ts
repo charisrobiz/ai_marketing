@@ -1,25 +1,25 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db/database';
+import { supabase } from '@/lib/db/supabase';
 
 // GET: 캠페인 결과물 다운로드 (JSON)
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ?').get(id) as Record<string, unknown> | undefined;
-  if (!campaign) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  }
+  const { data: campaign } = await supabase.from('campaigns').select('*').eq('id', id).single();
+  if (!campaign) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const plans = db.prepare('SELECT * FROM daily_plans WHERE campaign_id = ? ORDER BY day').all(id);
-  const creatives = db.prepare('SELECT * FROM creatives WHERE campaign_id = ?').all(id);
-  const votes = db.prepare('SELECT * FROM votes WHERE campaign_id = ?').all(id);
-  const events = db.prepare('SELECT * FROM live_events WHERE campaign_id = ? ORDER BY created_at').all(id);
-  const tasks = db.prepare('SELECT * FROM agent_tasks WHERE campaign_id = ? ORDER BY created_at').all(id);
+  const [{ data: plans }, { data: creatives }, { data: votes }, { data: events }, { data: tasks }] = await Promise.all([
+    supabase.from('daily_plans').select('*').eq('campaign_id', id).order('day'),
+    supabase.from('creatives').select('*').eq('campaign_id', id),
+    supabase.from('votes').select('*').eq('campaign_id', id),
+    supabase.from('live_events').select('*').eq('campaign_id', id).order('created_at'),
+    supabase.from('agent_tasks').select('*').eq('campaign_id', id).order('created_at'),
+  ]);
 
   const exportData = {
     campaign: {
       id: campaign.id,
-      productInfo: JSON.parse(campaign.product_info as string),
+      productInfo: campaign.product_info,
       status: campaign.status,
       createdAt: campaign.created_at,
     },

@@ -1,22 +1,23 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db/database';
+import { supabase } from '@/lib/db/supabase';
 
 // GET: 캠페인 상세 (플랜, 크리에이티브, 투표 포함)
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ?').get(id) as Record<string, unknown> | undefined;
-  if (!campaign) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  }
+  const { data: campaign } = await supabase.from('campaigns').select('*').eq('id', id).single();
+  if (!campaign) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const plans = db.prepare('SELECT * FROM daily_plans WHERE campaign_id = ? ORDER BY day').all(id);
-  const creatives = db.prepare('SELECT * FROM creatives WHERE campaign_id = ?').all(id);
+  const [{ data: plans }, { data: creatives }, { data: voteRows }, { data: tasks }] = await Promise.all([
+    supabase.from('daily_plans').select('*').eq('campaign_id', id).order('day'),
+    supabase.from('creatives').select('*').eq('campaign_id', id),
+    supabase.from('votes').select('*').eq('campaign_id', id),
+    supabase.from('agent_tasks').select('*').eq('campaign_id', id).order('created_at'),
+  ]);
 
   // Aggregate votes by creative
-  const voteRows = db.prepare('SELECT * FROM votes WHERE campaign_id = ?').all(id) as Array<Record<string, unknown>>;
   const votesByCreative: Record<string, Array<Record<string, unknown>>> = {};
-  for (const v of voteRows) {
+  for (const v of voteRows || []) {
     const cid = v.creative_id as string;
     if (!votesByCreative[cid]) votesByCreative[cid] = [];
     votesByCreative[cid].push(v);
@@ -39,24 +40,22 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   }).sort((a, b) => b.averageScore - a.averageScore);
   voteResults.forEach((v, i) => { v.rank = i + 1; });
 
-  const tasks = db.prepare('SELECT * FROM agent_tasks WHERE campaign_id = ? ORDER BY created_at').all(id);
-
   return NextResponse.json({
     id: campaign.id,
-    productInfo: JSON.parse(campaign.product_info as string),
+    productInfo: campaign.product_info,
     status: campaign.status,
     createdAt: campaign.created_at,
-    dailyPlan: (plans as Array<Record<string, unknown>>).map((p) => ({
+    dailyPlan: (plans || []).map((p) => ({
       day: p.day,
       week: p.week,
       title: p.title,
       description: p.description,
-      channels: JSON.parse((p.channels as string) || '[]'),
+      channels: typeof p.channels === 'string' ? JSON.parse(p.channels) : (p.channels || []),
       target: p.target,
       goal: p.goal,
       status: p.status,
     })),
-    creatives: (creatives as Array<Record<string, unknown>>).map((c) => ({
+    creatives: (creatives || []).map((c) => ({
       id: c.id,
       campaignId: c.campaign_id,
       angle: c.angle,
@@ -78,26 +77,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const body = await request.json();
 
   if (body.status) {
-    db.prepare('UPDATE campaigns SET status = ?, updated_at = datetime(\'now\') WHERE id = ?').run(body.status, id);
+    await supabase.from('campaigns').update({ status: body.status, updated_at: new Date().toISOString() }).eq('id', id);
   }
 
   return NextResponse.json({ id, updated: true });
 }
 
-// DELETE: 캠페인 삭제
+// DELETE: 캠페인 삭제 (CASCADE로 자동 삭제)
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-
-  const deleteInTransaction = db.transaction(() => {
-    db.prepare('DELETE FROM votes WHERE campaign_id = ?').run(id);
-    db.prepare('DELETE FROM creatives WHERE campaign_id = ?').run(id);
-    db.prepare('DELETE FROM daily_plans WHERE campaign_id = ?').run(id);
-    db.prepare('DELETE FROM live_events WHERE campaign_id = ?').run(id);
-    db.prepare('DELETE FROM agent_tasks WHERE campaign_id = ?').run(id);
-    db.prepare('DELETE FROM campaigns WHERE id = ?').run(id);
-  });
-
-  deleteInTransaction();
-
+  await supabase.from('campaigns').delete().eq('id', id);
   return NextResponse.json({ id, deleted: true });
 }

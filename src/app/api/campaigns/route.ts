@@ -1,15 +1,18 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db/database';
+import { supabase } from '@/lib/db/supabase';
 
 // GET: 모든 캠페인 조회
 export async function GET() {
-  const campaigns = db.prepare(`
-    SELECT id, product_info, status, created_at, updated_at FROM campaigns ORDER BY created_at DESC
-  `).all();
+  const { data: campaigns, error } = await supabase
+    .from('campaigns')
+    .select('id, product_info, status, created_at, updated_at')
+    .order('created_at', { ascending: false });
 
-  const result = (campaigns as Array<Record<string, unknown>>).map((c) => ({
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const result = (campaigns || []).map((c) => ({
     id: c.id,
-    productInfo: JSON.parse(c.product_info as string),
+    productInfo: c.product_info,
     status: c.status,
     createdAt: c.created_at,
     updatedAt: c.updated_at,
@@ -23,9 +26,13 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { id, productInfo, status } = body;
 
-  db.prepare(`
-    INSERT INTO campaigns (id, product_info, status, created_at) VALUES (?, ?, ?, datetime('now'))
-  `).run(id, JSON.stringify(productInfo), status || 'planning');
+  const { error } = await supabase.from('campaigns').insert({
+    id,
+    product_info: productInfo,
+    status: status || 'planning',
+  });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ id, status: 'created' });
 }

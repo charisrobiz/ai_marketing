@@ -1,51 +1,52 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db/database';
+import { supabase } from '@/lib/db/supabase';
 import { callLLM, parseJSONResponse } from '@/lib/ai/llmClient';
 
-function getSettings() {
-  const rows = db.prepare('SELECT key, value FROM settings').all() as Array<{ key: string; value: string }>;
+async function getSettings() {
+  const { data: rows } = await supabase.from('settings').select('key, value');
   const map: Record<string, string> = {};
-  for (const r of rows) map[r.key] = r.value;
+  for (const r of rows || []) map[r.key] = r.value;
   return map;
 }
 
-function addEvent(campaignId: string, agentId: string, agentName: string, type: string, content: string) {
-  db.prepare(`INSERT INTO live_events (id, campaign_id, agent_id, agent_name, type, content, created_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`)
-    .run(crypto.randomUUID(), campaignId, agentId, agentName, type, content);
+async function addEvent(campaignId: string, agentId: string, agentName: string, type: string, content: string) {
+  await supabase.from('live_events').insert({
+    id: crypto.randomUUID(),
+    campaign_id: campaignId,
+    agent_id: agentId,
+    agent_name: agentName,
+    type,
+    content,
+  });
 }
 
 // POST: 본부장 하나의 소재 검토 실행
 export async function POST(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: campaignId } = await params;
-  const settings = getSettings();
+  const settings = await getSettings();
 
-  const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ?').get(campaignId) as Record<string, unknown> | undefined;
+  const { data: campaign } = await supabase.from('campaigns').select('*').eq('id', campaignId).single();
   if (!campaign) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const productInfo = JSON.parse(campaign.product_info as string);
-  const creatives = db.prepare('SELECT * FROM creatives WHERE campaign_id = ?').all(campaignId) as Array<Record<string, unknown>>;
+  const productInfo = campaign.product_info;
+  const { data: creatives } = await supabase.from('creatives').select('*').eq('campaign_id', campaignId);
 
-  if (creatives.length === 0) return NextResponse.json({ error: 'No creatives' }, { status: 400 });
+  if (!creatives || creatives.length === 0) return NextResponse.json({ error: 'No creatives' }, { status: 400 });
 
   // 기존 리뷰 삭제 (재검토)
-  db.prepare('DELETE FROM creative_reviews WHERE campaign_id = ?').run(campaignId);
+  await supabase.from('creative_reviews').delete().eq('campaign_id', campaignId);
 
-  addEvent(campaignId, 'hana', '하나', 'chat', `소재 검토를 시작합니다. ${creatives.length}개 소재를 하나씩 확인할게요.`);
-
-  const insertReview = db.prepare(`
-    INSERT INTO creative_reviews (id, campaign_id, creative_id, reviewer, reviewer_name, status, score, brand_consistency, target_fit, cost_efficiency, comment, revision_note, created_at, reviewed_at)
-    VALUES (?, ?, ?, 'hana', '하나', ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-  `);
+  await addEvent(campaignId, 'hana', '하나', 'chat', `소재 검토를 시작합니다. ${creatives.length}개 소재를 하나씩 확인할게요.`);
 
   let approvedCount = 0;
   let revisionCount = 0;
   let rejectedCount = 0;
 
   for (const creative of creatives) {
-    const hookingText = creative.hooking_text as string;
-    const copyText = creative.copy_text as string;
-    const angle = creative.angle as string;
-    const platform = creative.platform as string;
+    const hookingText = creative.hooking_text;
+    const copyText = creative.copy_text;
+    const angle = creative.angle;
+    const platform = creative.platform;
 
     let reviewResult: {
       score: number;
@@ -90,8 +91,10 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
       reviewResult = parseJSONResponse(response.content);
     } catch {
       // Fallback: 자동 검토 (점수 기반)
-      const voteData = db.prepare('SELECT AVG(score) as avg FROM votes WHERE creative_id = ?').get(creative.id) as { avg: number } | undefined;
-      const avgScore = voteData?.avg || 7;
+      const { data: voteData } = await supabase.from('votes').select('score').eq('creative_id', creative.id);
+      const avgScore = voteData && voteData.length > 0
+        ? voteData.reduce((sum, v) => sum + v.score, 0) / voteData.length
+        : 7;
       const score = Math.round(avgScore);
 
       reviewResult = {
@@ -110,55 +113,53 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
       ? (ceoApprovalLevel === 'auto' ? 'approved' : 'pending')
       : 'pending';
 
-    insertReview.run(
-      crypto.randomUUID(),
-      campaignId,
-      creative.id,
-      reviewResult.status,
-      reviewResult.score,
-      reviewResult.brand_consistency,
-      reviewResult.target_fit,
-      reviewResult.cost_efficiency,
-      reviewResult.comment,
-      reviewResult.revision_note || null,
-    );
-
-    // Update ceo_status
-    if (ceoStatus !== 'pending') {
-      db.prepare('UPDATE creative_reviews SET ceo_status = ? WHERE creative_id = ?').run(ceoStatus, creative.id);
-    }
+    await supabase.from('creative_reviews').insert({
+      id: crypto.randomUUID(),
+      campaign_id: campaignId,
+      creative_id: creative.id,
+      reviewer: 'hana',
+      reviewer_name: '하나',
+      status: reviewResult.status,
+      score: reviewResult.score,
+      brand_consistency: reviewResult.brand_consistency,
+      target_fit: reviewResult.target_fit,
+      cost_efficiency: reviewResult.cost_efficiency,
+      comment: reviewResult.comment,
+      revision_note: reviewResult.revision_note || null,
+      ceo_status: ceoStatus,
+      reviewed_at: new Date().toISOString(),
+    });
 
     if (reviewResult.status === 'approved') approvedCount++;
     else if (reviewResult.status === 'revision_requested') revisionCount++;
     else rejectedCount++;
 
-    // Event log
     const statusEmoji = reviewResult.status === 'approved' ? '✅' : reviewResult.status === 'revision_requested' ? '📝' : '❌';
-    addEvent(campaignId, 'hana', '하나', 'chat',
+    await addEvent(campaignId, 'hana', '하나', 'chat',
       `${statusEmoji} "${angle}" (${platform}) - ${reviewResult.comment} [${reviewResult.score}/10]`
     );
   }
 
   // 종합 리포트
-  addEvent(campaignId, 'hana', '하나', 'system',
+  await addEvent(campaignId, 'hana', '하나', 'system',
     `소재 검토 완료! ✅ 승인 ${approvedCount}개 / 📝 수정요청 ${revisionCount}개 / ❌ 반려 ${rejectedCount}개`
   );
 
   if (revisionCount > 0) {
-    addEvent(campaignId, 'hana', '하나', 'chat',
+    await addEvent(campaignId, 'hana', '하나', 'chat',
       `수정 요청한 소재가 ${revisionCount}개 있습니다. 담당자분들 수정사항 확인하고 재작업 부탁드려요!`
     );
-    addEvent(campaignId, 'jiwoo', '지우', 'chat', `네 본부장님! 수정 사항 확인하고 바로 반영하겠습니다.`);
-    addEvent(campaignId, 'yuna', '유나', 'chat', `비주얼도 함께 조정할게요.`);
+    await addEvent(campaignId, 'jiwoo', '지우', 'chat', `네 본부장님! 수정 사항 확인하고 바로 반영하겠습니다.`);
+    await addEvent(campaignId, 'yuna', '유나', 'chat', `비주얼도 함께 조정할게요.`);
   }
 
   const ceoLevel = settings.ceoApprovalLevel || 'ceo_final';
   if (ceoLevel === 'ceo_final' && approvedCount > 0) {
-    addEvent(campaignId, 'hana', '하나', 'chat',
+    await addEvent(campaignId, 'hana', '하나', 'chat',
       `승인된 ${approvedCount}개 소재는 CEO 최종 승인 대기 중입니다. 승인 대시보드에서 확인해주세요!`
     );
   } else if (ceoLevel === 'ceo_notify' && approvedCount > 0) {
-    addEvent(campaignId, 'hana', '하나', 'system',
+    await addEvent(campaignId, 'hana', '하나', 'system',
       `승인된 ${approvedCount}개 소재가 자동 집행됩니다. CEO에게 알림을 발송했습니다.`
     );
   }
@@ -170,19 +171,34 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: campaignId } = await params;
 
-  const reviews = db.prepare(`
-    SELECT r.*, c.angle, c.hooking_text, c.copy_text, c.platform, c.image_prompt
-    FROM creative_reviews r
-    JOIN creatives c ON r.creative_id = c.id
-    WHERE r.campaign_id = ?
-    ORDER BY r.score DESC
-  `).all(campaignId);
+  const { data: reviews } = await supabase
+    .from('creative_reviews')
+    .select('*, creatives(angle, hooking_text, copy_text, platform, image_prompt)')
+    .eq('campaign_id', campaignId)
+    .order('score', { ascending: false });
 
-  const history = db.prepare(`
-    SELECT * FROM revision_history WHERE creative_id IN (
-      SELECT creative_id FROM creative_reviews WHERE campaign_id = ?
-    ) ORDER BY created_at DESC
-  `).all(campaignId);
+  const flatReviews = (reviews || []).map((r) => {
+    const creative = r.creatives as Record<string, unknown> | null;
+    return {
+      ...r,
+      angle: creative?.angle,
+      hooking_text: creative?.hooking_text,
+      copy_text: creative?.copy_text,
+      platform: creative?.platform,
+      image_prompt: creative?.image_prompt,
+      creatives: undefined,
+    };
+  });
 
-  return NextResponse.json({ reviews, history });
+  const { data: allReviewIds } = await supabase
+    .from('creative_reviews')
+    .select('creative_id')
+    .eq('campaign_id', campaignId);
+
+  const creativeIds = (allReviewIds || []).map((r) => r.creative_id);
+  const { data: history } = creativeIds.length > 0
+    ? await supabase.from('revision_history').select('*').in('creative_id', creativeIds).order('created_at', { ascending: false })
+    : { data: [] };
+
+  return NextResponse.json({ reviews: flatReviews, history: history || [] });
 }
