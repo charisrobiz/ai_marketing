@@ -1,5 +1,5 @@
-import type { ProductInfo, CampaignMedia, MediaContent } from '@/types';
-import { CATEGORY_LABELS, MEDIA_USAGE_LABELS } from '@/types';
+import type { ProductInfo, CampaignMedia, MediaContent, CampaignType } from '@/types';
+import { CATEGORY_LABELS, MEDIA_USAGE_LABELS, CAMPAIGN_TYPE_CONFIG } from '@/types';
 
 function buildMediaContext(media: CampaignMedia[]): string {
   if (!media || media.length === 0) return '';
@@ -15,15 +15,54 @@ function buildMediaContext(media: CampaignMedia[]): string {
   return `\n[CEO 제공 참고 미디어]\n${lines.join('\n')}\n위 미디어의 내용과 분위기를 참고하여 소재를 제작하세요.\n`;
 }
 
-export function buildPlanPrompt(product: ProductInfo, media?: CampaignMedia[]): string {
+function buildCampaignStructure(campaignType: CampaignType): string {
+  const config = CAMPAIGN_TYPE_CONFIG[campaignType];
+
+  if (campaignType === 'flash') {
+    return `[${config.days}일 긴급 캠페인 구조]
+- Day 1: 긴급 티저 & 사전 알림 확산 (FOMO 극대화)
+- Day 2: 메인 이벤트 실행 & 퍼포먼스 전력 투입
+- Day 3: 마감 임박 리마인더 & 전환 스퍼트
+
+핵심 원칙: 시간 제한 강조, 즉각적 행동 유도, 공유/바이럴 극대화. 느긋한 전략 불가 - 모든 액션이 즉시 효과를 내야 합니다.`;
+  }
+
+  if (campaignType === 'short') {
+    return `[${config.days}일 단기 캠페인 구조]
+- Week 1: 인지도 폭발 & 핵심 타겟 공략 (초기 모멘텀 확보)
+- Week 2: 전환 최적화 & 성과 극대화 (리타겟팅, 스케일업)
+
+핵심 원칙: 빠른 테스트 → 즉시 스케일업. 위너 소재를 2-3일 내에 찾아 나머지 기간에 집중 투입.`;
+  }
+
+  if (campaignType === 'long') {
+    return `[${config.days}일 장기 캠페인 구조]
+- Month 1 (Week 1-4): 시장 진입 & 니치 장악 - 핵심 타겟 확보, 커뮤니티 시딩
+- Month 2 (Week 5-8): 성장 가속 & 인접 확장 - 퍼포먼스 스케일업, 볼링핀 전략
+- Month 3 (Week 9-12): 브랜드 확립 & 리텐션 - LTV 최적화, 충성 고객 전환
+
+핵심 원칙: 장기 브랜드 빌딩과 단기 퍼포먼스의 균형. 매월 전략을 피봇할 수 있는 데이터 기반 의사결정.`;
+  }
+
+  // standard (30일)
+  return `[${config.days}일 표준 캠페인 구조]
+- Week 1: 시장 검증 & 초기 유저 확보
+- Week 2: 오가닉 성장 & 콘텐츠 확산
+- Week 3: 데이터 기반 최적화 & 스케일링
+- Week 4: 리텐션 강화 & 목표 달성 (10,000명)`;
+}
+
+export function buildPlanPrompt(product: ProductInfo, media?: CampaignMedia[], campaignType: CampaignType = 'standard'): string {
   const categoryLabel = CATEGORY_LABELS[product.category];
+  const config = CAMPAIGN_TYPE_CONFIG[campaignType];
   const additionalInfo = Object.entries(product.additionalAnswers || {})
     .filter(([, v]) => v)
     .map(([k, v]) => `- ${k}: ${v}`)
     .join('\n');
 
   return `당신은 세계 최고의 마케팅 전략 팀의 본부장입니다.
-다음 제품의 30일 마케팅 플랜을 생성해주세요.
+다음 제품의 ${config.days}일 마케팅 플랜을 생성해주세요.
+캠페인 유형: ${config.emoji} ${config.label} - ${config.description}
 
 [제품 정보]
 - 카테고리: ${categoryLabel}
@@ -35,22 +74,20 @@ ${additionalInfo ? `\n[심층 정보]\n${additionalInfo}` : ''}${media ? buildMe
 
 [전략 분석 요구사항]
 다양한 마케팅 기법을 종합적으로 분석하여 이 제품에 가장 효과적인 전략 조합을 찾아주세요:
-- 니치 마케팅: 극도로 세분화된 타겟에서 시작하여 점진적 확장
+${campaignType === 'flash' ? `- 긴급성/FOMO 마케팅: 시간 제한, 수량 한정, 카운트다운
+- 퍼포먼스 마케팅: Meta/Google 광고 즉시 집행, 리타겟팅
+- 바이럴 마케팅: 공유 유도, 친구 태그, 챌린지` : `- 니치 마케팅: 극도로 세분화된 타겟에서 시작하여 점진적 확장
 - 바이럴 마케팅: UGC, 챌린지, 밈을 활용한 오가닉 성장
 - 퍼포먼스 마케팅: Meta/Google 광고 최적화, A/B 테스트
 - 커뮤니티 마케팅: 브랜드 커뮤니티 구축, 팬덤 형성
 - 인플루언서 마케팅: 마이크로/나노 인플루언서 협업
 - SEO/콘텐츠 마케팅: 롱테일 키워드, 블로그, 교육형 콘텐츠
-- 그로스핵: 레퍼럴, 초대 보상, 프리미엄 전환 유도
+- 그로스핵: 레퍼럴, 초대 보상, 프리미엄 전환 유도`}
 
-위 전략들 중 이 제품에 최적인 조합을 선택하고 30일 플랜에 적용하세요.
+위 전략들 중 이 제품에 최적인 조합을 선택하고 ${config.days}일 플랜에 적용하세요.
 최소 비용으로 최대 효과를 내는 것이 핵심입니다.
 
-[30일 구조]
-- Week 1: 시장 검증 & 초기 유저 확보
-- Week 2: 오가닉 성장 & 콘텐츠 확산
-- Week 3: 데이터 기반 최적화 & 스케일링
-- Week 4: 리텐션 강화 & 목표 달성 (10,000명)
+${buildCampaignStructure(campaignType)}
 
 반드시 아래 JSON 형식으로만 응답하세요:
 [

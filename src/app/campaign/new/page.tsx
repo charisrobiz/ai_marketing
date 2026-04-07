@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/store/useStore';
-import { CATEGORY_LABELS, type ProductCategory } from '@/types';
+import { CATEGORY_LABELS, CAMPAIGN_TYPE_CONFIG, type ProductCategory, type CampaignType } from '@/types';
 import { ArrowRight, ArrowLeft, Sparkles, CheckCircle, Image, Video, AlertTriangle, Layers } from 'lucide-react';
 import MediaUploadStep from '@/components/campaign/MediaUploadStep';
 import type { UploadedMedia } from '@/components/campaign/MediaUploadStep';
@@ -72,6 +72,7 @@ export default function NewCampaignPage() {
   const { addCampaign, settings } = useStore();
   const [step, setStep] = useState(0);
   const [category, setCategory] = useState<ProductCategory | null>(null);
+  const [campaignType, setCampaignType] = useState<CampaignType>('standard');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [targetAudience, setTargetAudience] = useState('');
@@ -120,7 +121,7 @@ export default function NewCampaignPage() {
         uniqueValue,
         additionalAnswers: answers,
       },
-      options: { generateImage, generateVideo, composeBanner, figmaFileUrl },
+      options: { campaignType, generateImage, generateVideo, composeBanner, figmaFileUrl },
       status: 'planning' as const,
       createdAt: new Date().toISOString(),
     };
@@ -197,6 +198,32 @@ export default function NewCampaignPage() {
         {step === 1 && (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold mb-4">기본 정보</h2>
+
+            {/* 캠페인 유형 선택 */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">캠페인 유형 *</label>
+              <div className="grid grid-cols-2 gap-2">
+                {(Object.entries(CAMPAIGN_TYPE_CONFIG) as [CampaignType, typeof CAMPAIGN_TYPE_CONFIG[CampaignType]][]).map(([key, config]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setCampaignType(key)}
+                    className={`p-3 rounded-lg border text-left transition-all ${
+                      campaignType === key
+                        ? 'border-blue-500 bg-blue-500/10'
+                        : 'border-white/10 bg-white/5 hover:border-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span>{config.emoji}</span>
+                      <span className="text-sm font-medium">{config.label}</span>
+                    </div>
+                    <p className="text-[11px] text-gray-500">{config.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm text-gray-400 mb-1.5">제품/서비스 이름 *</label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: SNAPTALE"
@@ -256,6 +283,10 @@ export default function NewCampaignPage() {
           <div>
             <h2 className="text-lg font-semibold mb-4">캠페인 정보 확인</h2>
             <div className="space-y-3 text-sm">
+              <div className="flex justify-between py-2 border-b border-white/5">
+                <span className="text-gray-500">캠페인 유형</span>
+                <span>{CAMPAIGN_TYPE_CONFIG[campaignType].emoji} {CAMPAIGN_TYPE_CONFIG[campaignType].label} ({CAMPAIGN_TYPE_CONFIG[campaignType].days}일)</span>
+              </div>
               <div className="flex justify-between py-2 border-b border-white/5">
                 <span className="text-gray-500">카테고리</span>
                 <span>{CATEGORY_LABELS[category!]}</span>

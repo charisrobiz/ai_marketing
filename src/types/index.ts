@@ -43,7 +43,17 @@ export interface ProductInfo {
   additionalAnswers: Record<string, string>;
 }
 
+export type CampaignType = 'flash' | 'short' | 'standard' | 'long';
+
+export const CAMPAIGN_TYPE_CONFIG: Record<CampaignType, { label: string; description: string; days: number; weeks: number; emoji: string }> = {
+  flash: { label: '긴급/이벤트', description: '플래시 세일, 한정 이벤트, 긴급 프로모션 (1~3일)', days: 3, weeks: 1, emoji: '⚡' },
+  short: { label: '단기 캠페인', description: '신제품 출시, 시즌 프로모션 (1~2주)', days: 14, weeks: 2, emoji: '🚀' },
+  standard: { label: '표준 캠페인', description: '브랜드 성장, 유저 확보 (30일)', days: 30, weeks: 4, emoji: '📈' },
+  long: { label: '장기 캠페인', description: '브랜드 빌딩, 시장 점유 (2~3개월)', days: 90, weeks: 12, emoji: '🏗️' },
+};
+
 export interface CampaignOptions {
+  campaignType: CampaignType;
   generateImage: boolean;
   generateVideo: boolean;
   composeBanner: boolean;

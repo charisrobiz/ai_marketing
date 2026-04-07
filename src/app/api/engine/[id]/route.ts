@@ -8,6 +8,7 @@ import { generateVideo } from '@/lib/media/videoGenerator';
 import { fetchFigmaTemplate } from '@/lib/media/figmaClient';
 import { composeBanner } from '@/lib/media/bannerComposer';
 import type { ProductInfo, CampaignOptions, CampaignMedia, MediaContent } from '@/types';
+import { CAMPAIGN_TYPE_CONFIG } from '@/types';
 
 async function getSettings() {
   const { data: rows } = await supabase.from('settings').select('key, value');
@@ -70,8 +71,10 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   const imageRefs = campaignMedia.filter((m) => ['ad_image_reference', 'background_source', 'app_screenshot'].includes(m.parsedContent?.usage_intent || ''));
 
   // === 하나(본부장) 니치밴딩 브리핑 ===
+  const typeConfig = CAMPAIGN_TYPE_CONFIG[options.campaignType || 'standard'];
   await addEvent(campaignId, 'hana', '하나', 'chat', `팀 여러분, "${productInfo.name}" 캠페인 킥오프 미팅을 시작합니다!`);
-  await addEvent(campaignId, 'hana', '하나', 'chat', `이번 캠페인은 니치밴딩(Niche Banding) 전략으로 진행합니다.`);
+  await addEvent(campaignId, 'hana', '하나', 'chat', `${typeConfig.emoji} 이번 캠페인은 "${typeConfig.label}" (${typeConfig.days}일)입니다. ${typeConfig.description}`);
+  await addEvent(campaignId, 'hana', '하나', 'chat', `니치밴딩(Niche Banding) 전략을 기본으로, 캠페인 기간에 맞게 전략을 최적화합니다.`);
   await addEvent(campaignId, 'hana', '하나', 'chat', `니치밴딩 5원칙: 1)극도의 세분화 2)깊이>넓이 3)커뮤니티 중심 성장 4)권위 구축 5)볼링핀 확장 전략`);
   await addEvent(campaignId, 'hana', '하나', 'chat', `"${productInfo.targetAudience || '타겟 미정'}"을 더 깊이 세분화해서, 핵심 니치를 찾아야 합니다.`);
   await addEvent(campaignId, 'hana', '하나', 'chat', `차별점은 "${productInfo.uniqueValue || productInfo.description}"입니다. 소수에게 필수적인 포지셔닝으로 가겠습니다.`);
@@ -100,7 +103,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
 
   let plans;
   try {
-    const prompt = buildPlanPrompt(productInfo, campaignMedia);
+    const prompt = buildPlanPrompt(productInfo, campaignMedia, options.campaignType || 'standard');
     const response = await callLLM(settings, prompt);
     plans = parseJSONResponse<Array<{ day: number; week: number; title: string; description: string; channels: string[]; target: string; goal: string }>>(response.content);
     await addEvent(campaignId, 'minseo', '민서', 'plan', `니치밴딩 기반 30일 플랜 완료! ${plans.length}일치 (${response.model})`);
