@@ -1,8 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/db/supabase';
 import { Zap, Mail, Lock, AlertCircle, UserPlus, LogIn } from 'lucide-react';
+
+const STORAGE_KEY_EMAIL = 'autogrowth_saved_email';
+const STORAGE_KEY_REMEMBER = 'autogrowth_remember_email';
+const STORAGE_KEY_AUTOLOGIN = 'autogrowth_auto_login';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -11,6 +15,22 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [signupSuccess, setSignupSuccess] = useState(false);
+  const [rememberEmail, setRememberEmail] = useState(false);
+  const [autoLogin, setAutoLogin] = useState(false);
+
+  // 저장된 이메일 및 자동로그인 설정 불러오기
+  useEffect(() => {
+    try {
+      const savedRemember = localStorage.getItem(STORAGE_KEY_REMEMBER) === 'true';
+      const savedAutoLogin = localStorage.getItem(STORAGE_KEY_AUTOLOGIN) === 'true';
+      setRememberEmail(savedRemember);
+      setAutoLogin(savedAutoLogin);
+      if (savedRemember) {
+        const savedEmail = localStorage.getItem(STORAGE_KEY_EMAIL) || '';
+        setEmail(savedEmail);
+      }
+    } catch { /* empty */ }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +45,16 @@ export default function LoginPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+
+        // 로그인 성공 시 설정 저장
+        if (rememberEmail) {
+          localStorage.setItem(STORAGE_KEY_EMAIL, email);
+          localStorage.setItem(STORAGE_KEY_REMEMBER, 'true');
+        } else {
+          localStorage.removeItem(STORAGE_KEY_EMAIL);
+          localStorage.setItem(STORAGE_KEY_REMEMBER, 'false');
+        }
+        localStorage.setItem(STORAGE_KEY_AUTOLOGIN, autoLogin ? 'true' : 'false');
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : '오류가 발생했습니다';
@@ -123,6 +153,35 @@ export default function LoginPage() {
                 />
               </div>
             </div>
+
+            {mode === 'login' && (
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={rememberEmail}
+                    onChange={(e) => {
+                      setRememberEmail(e.target.checked);
+                      if (!e.target.checked) setAutoLogin(false);
+                    }}
+                    className="w-4 h-4 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0 cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">ID 저장</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={autoLogin}
+                    onChange={(e) => {
+                      setAutoLogin(e.target.checked);
+                      if (e.target.checked) setRememberEmail(true);
+                    }}
+                    className="w-4 h-4 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0 cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">자동 로그인</span>
+                </label>
+              </div>
+            )}
 
             {error && (
               <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 px-3 py-2 rounded-lg">
