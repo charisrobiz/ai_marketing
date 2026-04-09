@@ -96,7 +96,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
         openaiApiKey: settings.openaiApiKey || '',
         claudeApiKey: settings.claudeApiKey || '',
         geminiApiKey: settings.geminiApiKey || '',
-      }, prompt);
+      }, prompt, 'analysis');
 
       await logLLMUsage({ campaignId, agentId: 'hana', agentName: '하나', phase: 'review', taskDescription: `소재 검토 (${creative.angle})`, mode }, response);
       reviewResult = parseJSONResponse(response.content);

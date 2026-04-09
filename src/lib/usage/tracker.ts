@@ -3,7 +3,7 @@
 import { supabase } from '@/lib/db/supabase';
 import type { LLMResponse } from '@/lib/ai/llmClient';
 
-// 모델별 가격 (USD per 1M tokens)
+// 모델별 가격 (USD per 1M tokens, 2026년 4월 기준)
 const LLM_PRICING: Record<string, { input: number; output: number }> = {
   // OpenAI
   'gpt-4o-mini': { input: 0.15, output: 0.60 },
@@ -11,7 +11,11 @@ const LLM_PRICING: Record<string, { input: number; output: number }> = {
   // Claude
   'claude-sonnet-4-20250514': { input: 3.00, output: 15.00 },
   'claude-3-5-sonnet-20241022': { input: 3.00, output: 15.00 },
-  // Gemini
+  // Gemini (2.5+)
+  'gemini-2.5-flash': { input: 0.30, output: 2.50 },
+  'gemini-2.5-flash-lite': { input: 0.10, output: 0.40 },
+  'gemini-2.5-pro': { input: 1.25, output: 10.00 },
+  // Gemini (deprecated, 호환용)
   'gemini-2.0-flash': { input: 0.10, output: 0.40 },
   'gemini-2.0-flash-exp': { input: 0.10, output: 0.40 },
 };

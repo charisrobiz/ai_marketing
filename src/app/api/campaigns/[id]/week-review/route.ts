@@ -136,7 +136,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       openaiApiKey: settings.openaiApiKey || '',
       claudeApiKey: settings.claudeApiKey || '',
       geminiApiKey: settings.geminiApiKey || '',
-    }, analysisPrompt);
+    }, analysisPrompt, 'analysis');
     await logLLMUsage({ campaignId, agentId: 'eunji', agentName: '은지', phase: 'week-review', taskDescription: `Week ${currentWeek} 데이터 분석`, mode }, res);
     analysis = parseJSONResponse(res.content);
     await addEvent(campaignId, 'eunji', '은지', 'chat', `📊 ${analysis.summary}`);
@@ -164,7 +164,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         openaiApiKey: settings.openaiApiKey || '',
         claudeApiKey: settings.claudeApiKey || '',
         geminiApiKey: settings.geminiApiKey || '',
-      }, opinionPrompt);
+      }, opinionPrompt, 'analysis');
       await logLLMUsage({ campaignId, agentId: member.id, agentName: member.name, phase: 'week-review', taskDescription: `Week ${currentWeek} ${member.role} 의견`, mode }, res);
       const result = parseJSONResponse<{ opinion: string; recommendation: string }>(res.content);
       opinions.push({ name: member.name, opinion: result.opinion, recommendation: result.recommendation });
@@ -183,7 +183,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       openaiApiKey: settings.openaiApiKey || '',
       claudeApiKey: settings.claudeApiKey || '',
       geminiApiKey: settings.geminiApiKey || '',
-    }, decisionPrompt);
+    }, decisionPrompt, 'analysis');
     await logLLMUsage({ campaignId, agentId: 'hana', agentName: '하나', phase: 'week-review', taskDescription: `Week ${currentWeek} 본부장 종합 결정`, mode }, res);
     decision = parseJSONResponse(res.content);
     await addEvent(campaignId, 'hana', '하나', 'chat', decision.decision);

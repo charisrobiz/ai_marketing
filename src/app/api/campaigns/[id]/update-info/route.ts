@@ -92,7 +92,7 @@ ${changes.join('\n')}
       openaiApiKey: settings.openaiApiKey || '',
       claudeApiKey: settings.claudeApiKey || '',
       geminiApiKey: settings.geminiApiKey || '',
-    }, prompt);
+    }, prompt, 'analysis');
     impactResult = parseJSONResponse(response.content);
   } catch {
     const hasTargetChange = oldInfo.targetAudience !== newInfo.targetAudience;

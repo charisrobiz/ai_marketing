@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
   try {
     const prompt = buildChannelSetupPrompt(platform, productInfo);
-    const response = await callLLM(settings, prompt);
+    const response = await callLLM(settings, prompt, 'simple');
     const recommendation = parseJSONResponse(response.content);
 
     // DB에 저장

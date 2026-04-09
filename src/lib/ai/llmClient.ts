@@ -75,7 +75,7 @@ async function callClaude(apiKey: string, prompt: string, model = 'claude-sonnet
   };
 }
 
-async function callGemini(apiKey: string, prompt: string, model = 'gemini-2.0-flash'): Promise<LLMResponse> {
+async function callGemini(apiKey: string, prompt: string, model = 'gemini-2.5-flash'): Promise<LLMResponse> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
@@ -104,49 +104,50 @@ async function callGemini(apiKey: string, prompt: string, model = 'gemini-2.0-fl
   };
 }
 
-function getAvailableProvider(settings: {
+// 작업 타입: simple(단순) | analysis(분석/추론)
+export type TaskType = 'simple' | 'analysis';
+
+interface LLMSettings {
   openaiApiKey?: string;
   claudeApiKey?: string;
   geminiApiKey?: string;
-}): { provider: Provider; apiKey: string } | null {
-  if (settings.openaiApiKey) return { provider: 'openai', apiKey: settings.openaiApiKey };
-  if (settings.claudeApiKey) return { provider: 'claude', apiKey: settings.claudeApiKey };
-  if (settings.geminiApiKey) return { provider: 'gemini', apiKey: settings.geminiApiKey };
+}
+
+// 작업 타입별 모델 우선순위
+// analysis: 정확도 중요 → Claude > GPT-4o > Gemini 2.5 Pro
+// simple: 비용 효율 중요 → GPT-4o-mini > Gemini 2.5 Flash > Claude
+function selectProviderAndModel(
+  settings: LLMSettings,
+  taskType: TaskType
+): { provider: Provider; apiKey: string; model: string } | null {
+  if (taskType === 'analysis') {
+    // 분석 작업: Claude Sonnet > GPT-4o > Gemini Pro
+    if (settings.claudeApiKey) return { provider: 'claude', apiKey: settings.claudeApiKey, model: 'claude-sonnet-4-20250514' };
+    if (settings.openaiApiKey) return { provider: 'openai', apiKey: settings.openaiApiKey, model: 'gpt-4o' };
+    if (settings.geminiApiKey) return { provider: 'gemini', apiKey: settings.geminiApiKey, model: 'gemini-2.5-pro' };
+  } else {
+    // 단순 작업: GPT-4o-mini > Gemini 2.5 Flash > Claude
+    if (settings.openaiApiKey) return { provider: 'openai', apiKey: settings.openaiApiKey, model: 'gpt-4o-mini' };
+    if (settings.geminiApiKey) return { provider: 'gemini', apiKey: settings.geminiApiKey, model: 'gemini-2.5-flash' };
+    if (settings.claudeApiKey) return { provider: 'claude', apiKey: settings.claudeApiKey, model: 'claude-sonnet-4-20250514' };
+  }
   return null;
 }
 
 export async function callLLM(
-  settings: { openaiApiKey?: string; claudeApiKey?: string; geminiApiKey?: string },
+  settings: LLMSettings,
   prompt: string,
-  preferredProvider?: Provider
+  taskType: TaskType = 'simple'
 ): Promise<LLMResponse> {
-  // Use preferred provider if available
-  if (preferredProvider) {
-    const keyMap: Record<Provider, string | undefined> = {
-      openai: settings.openaiApiKey,
-      claude: settings.claudeApiKey,
-      gemini: settings.geminiApiKey,
-    };
-    const apiKey = keyMap[preferredProvider];
-    if (apiKey) {
-      switch (preferredProvider) {
-        case 'openai': return callOpenAI(apiKey, prompt);
-        case 'claude': return callClaude(apiKey, prompt);
-        case 'gemini': return callGemini(apiKey, prompt);
-      }
-    }
-  }
-
-  // Fallback to any available provider
-  const available = getAvailableProvider(settings);
-  if (!available) {
+  const selected = selectProviderAndModel(settings, taskType);
+  if (!selected) {
     throw new Error('API 키가 설정되지 않았습니다. 관리자 페이지에서 API 키를 입력해주세요.');
   }
 
-  switch (available.provider) {
-    case 'openai': return callOpenAI(available.apiKey, prompt);
-    case 'claude': return callClaude(available.apiKey, prompt);
-    case 'gemini': return callGemini(available.apiKey, prompt);
+  switch (selected.provider) {
+    case 'openai': return callOpenAI(selected.apiKey, prompt, selected.model);
+    case 'claude': return callClaude(selected.apiKey, prompt, selected.model);
+    case 'gemini': return callGemini(selected.apiKey, prompt, selected.model);
   }
 }
 
