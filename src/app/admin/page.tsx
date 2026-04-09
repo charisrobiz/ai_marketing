@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
-import { Settings, Eye, EyeOff, Save, CheckCircle, HelpCircle, X, ExternalLink, BookOpen, Download, ChevronDown, ChevronUp, Share2 } from 'lucide-react';
+import { Settings, Eye, EyeOff, Save, CheckCircle, HelpCircle, X, ExternalLink, BookOpen, Download, ChevronDown, ChevronUp, Share2, Workflow } from 'lucide-react';
 import SocialChannelManager from '@/components/admin/SocialChannelManager';
 import type { AdminSettings } from '@/types';
 
@@ -597,6 +597,9 @@ export default function AdminPage() {
         </div>
       </div>
 
+      {/* AI Workflow Map */}
+      <AIWorkflowMap settings={localSettings} />
+
       {/* Save */}
       <button
         onClick={handleSave}
@@ -612,6 +615,290 @@ export default function AdminPage() {
 
       {/* Guide Popup */}
       {activeGuide && <GuidePopup guide={activeGuide} onClose={() => setActiveGuide(null)} />}
+    </div>
+  );
+}
+
+// === AI Workflow Map ===
+interface WorkflowStage {
+  phase: string;
+  label: string;
+  emoji: string;
+  agents: Array<{ id: string; name: string; role: string }>;
+  service: string;
+  defaultModel: string;
+  description: string;
+  callsPerCampaign: string;
+  estimatedCost: string;
+  required: boolean;
+}
+
+const WORKFLOW_STAGES: WorkflowStage[] = [
+  {
+    phase: 'kickoff',
+    label: '킥오프 미팅',
+    emoji: '🎬',
+    agents: [
+      { id: 'hana', name: '하나', role: '본부장' },
+      { id: 'minseo', name: '민서', role: '전략가' },
+      { id: 'jiwoo', name: '지우', role: 'SEO/카피' },
+      { id: 'yuna', name: '유나', role: '디렉터' },
+      { id: 'doha', name: '도하', role: '모션' },
+      { id: 'taeyang', name: '태양', role: '퍼포먼스' },
+      { id: 'eunji', name: '은지', role: '데이터' },
+      { id: 'siwon', name: '시원', role: '개발' },
+    ],
+    service: 'LLM (OpenAI/Claude/Gemini)',
+    defaultModel: 'gpt-4o-mini',
+    description: '8명 팀원 전체가 캠페인 킥오프 회의를 진행. 한 번의 LLM 호출로 모든 팀원 대화 생성.',
+    callsPerCampaign: '1회',
+    estimatedCost: '~$0.001',
+    required: true,
+  },
+  {
+    phase: 'plan',
+    label: '플랜 생성',
+    emoji: '📋',
+    agents: [{ id: 'minseo', name: '민서', role: '마케팅 전략가' }],
+    service: 'LLM (OpenAI/Claude/Gemini)',
+    defaultModel: 'gpt-4o-mini',
+    description: '캠페인 유형(긴급/단기/표준/장기)에 맞는 일별 마케팅 플랜을 생성.',
+    callsPerCampaign: '1회',
+    estimatedCost: '~$0.002',
+    required: true,
+  },
+  {
+    phase: 'creative',
+    label: '소재 생성',
+    emoji: '✍️',
+    agents: [
+      { id: 'jiwoo', name: '지우', role: 'SEO 카피라이터' },
+      { id: 'yuna', name: '유나', role: '크리에이티브 디렉터' },
+    ],
+    service: 'LLM (OpenAI/Claude/Gemini)',
+    defaultModel: 'gpt-4o-mini',
+    description: '플랫폼별 5가지 앵글의 카피 생성. 채널 톤/포맷/해시태그 자동 반영.',
+    callsPerCampaign: '3회 (Day 1, 2, 3)',
+    estimatedCost: '~$0.003',
+    required: true,
+  },
+  {
+    phase: 'image',
+    label: '이미지 생성',
+    emoji: '🎨',
+    agents: [{ id: 'yuna', name: '유나', role: '크리에이티브 디렉터' }],
+    service: 'Gemini Nano Banana 2',
+    defaultModel: 'gemini-2.0-flash-exp',
+    description: '각 소재별 마케팅 이미지를 AI로 자동 생성. CEO 참고 이미지 스타일 반영.',
+    callsPerCampaign: '~15회 (소재 수만큼)',
+    estimatedCost: '~$0.60',
+    required: false,
+  },
+  {
+    phase: 'video',
+    label: '동영상 생성',
+    emoji: '🎬',
+    agents: [{ id: 'doha', name: '도하', role: '모션 디자이너' }],
+    service: 'Runway Gen-4 Turbo',
+    defaultModel: 'gen4_turbo',
+    description: '이미지 기반 5초 숏폼 영상 생성. CEO 업로드 영상을 우선 소스로 사용.',
+    callsPerCampaign: '3회 (상위 3개 소재)',
+    estimatedCost: '~$0.75',
+    required: false,
+  },
+  {
+    phase: 'banner',
+    label: 'Figma 배너 합성',
+    emoji: '🖼️',
+    agents: [{ id: 'yuna', name: '유나', role: '크리에이티브 디렉터' }],
+    service: 'Figma API + Gemini',
+    defaultModel: 'gemini-2.0-flash-exp',
+    description: 'Figma 템플릿에 AI 카피+이미지를 합성하여 플랫폼별 광고 배너 생성.',
+    callsPerCampaign: '~9회 (3소재 × 3플랫폼)',
+    estimatedCost: '~$0.36',
+    required: false,
+  },
+  {
+    phase: 'vote',
+    label: '심사위원 투표',
+    emoji: '🗳️',
+    agents: [{ id: 'eunji', name: '은지', role: '데이터 엔지니어' }],
+    service: 'LLM (OpenAI/Claude/Gemini)',
+    defaultModel: 'gpt-4o-mini',
+    description: '100인 AI 심사위원단이 각 소재를 평가. 10명 실제 호출 + 90명 시뮬레이션.',
+    callsPerCampaign: '~150회 (15소재 × 10심사위원)',
+    estimatedCost: '~$0.05',
+    required: true,
+  },
+  {
+    phase: 'review',
+    label: '본부장 소재 검토',
+    emoji: '👩‍💼',
+    agents: [{ id: 'hana', name: '하나', role: '본부장' }],
+    service: 'LLM (OpenAI/Claude/Gemini)',
+    defaultModel: 'gpt-4o-mini',
+    description: '각 소재를 브랜드 일관성, 타겟 적합성, 비용 효율 기준으로 검토.',
+    callsPerCampaign: '~15회 (소재 수만큼)',
+    estimatedCost: '~$0.005',
+    required: false,
+  },
+  {
+    phase: 'week-review',
+    label: '주간 리뷰 (4단계)',
+    emoji: '📊',
+    agents: [
+      { id: 'eunji', name: '은지', role: '분석' },
+      { id: 'minseo', name: '민서', role: '전략' },
+      { id: 'taeyang', name: '태양', role: '퍼포먼스' },
+      { id: 'jiwoo', name: '지우', role: 'SEO' },
+      { id: 'yuna', name: '유나', role: '디렉터' },
+      { id: 'hana', name: '하나', role: '본부장' },
+    ],
+    service: 'LLM (OpenAI/Claude/Gemini) + 외부 API',
+    defaultModel: 'gpt-4o-mini',
+    description: '실제 외부 API 지표 수집 → 은지 분석 → 4명 의견 → 본부장 종합 결정.',
+    callsPerCampaign: '6회 × 4주 = 24회',
+    estimatedCost: '~$0.024',
+    required: false,
+  },
+  {
+    phase: 'channel_recommend',
+    label: '소셜 채널 AI 추천',
+    emoji: '📱',
+    agents: [
+      { id: 'hana', name: '하나', role: '본부장' },
+      { id: 'minseo', name: '민서', role: '전략' },
+      { id: 'jiwoo', name: '지우', role: 'SEO' },
+      { id: 'yuna', name: '유나', role: '디렉터' },
+    ],
+    service: 'LLM (OpenAI/Claude/Gemini)',
+    defaultModel: 'gpt-4o-mini',
+    description: '미보유 채널의 알고리즘 최적화 계정 설정 추천 (이름, 바이오, 카테고리).',
+    callsPerCampaign: '플랫폼당 1회',
+    estimatedCost: '~$0.002/플랫폼',
+    required: false,
+  },
+];
+
+function AIWorkflowMap({ settings }: { settings: AdminSettings }) {
+  const [open, setOpen] = useState(false);
+
+  const getStageStatus = (stage: WorkflowStage): { ready: boolean; reason?: string } => {
+    if (stage.phase === 'image' || stage.phase === 'banner') {
+      if (!settings.geminiApiKey) return { ready: false, reason: 'Gemini 키 필요' };
+      if (stage.phase === 'banner' && !settings.figmaApiKey) return { ready: false, reason: 'Figma 키 필요' };
+      return { ready: true };
+    }
+    if (stage.phase === 'video') {
+      if (!settings.runwayApiKey) return { ready: false, reason: 'Runway 키 필요' };
+      return { ready: true };
+    }
+    // LLM 사용 단계
+    const hasLLM = settings.openaiApiKey || settings.claudeApiKey || settings.geminiApiKey;
+    if (!hasLLM) return { ready: false, reason: 'LLM 키 필요' };
+    return { ready: true };
+  };
+
+  const getActiveLLM = () => {
+    if (settings.openaiApiKey) return 'gpt-4o-mini';
+    if (settings.claudeApiKey) return 'claude-sonnet-4';
+    if (settings.geminiApiKey) return 'gemini-2.0-flash';
+    return '미설정';
+  };
+
+  return (
+    <div className="glass-card p-6 mb-6">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between"
+      >
+        <div className="flex items-center gap-3">
+          <Workflow className="w-5 h-5 text-indigo-400" />
+          <div className="text-left">
+            <h3 className="text-base font-bold">AI 워크플로우 맵</h3>
+            <p className="text-xs text-gray-500">단계별 사용 직원 / AI 서비스 / 모델 / 예상 비용</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] px-2 py-1 rounded-full bg-indigo-500/10 text-indigo-400">
+            현재 LLM: {getActiveLLM()}
+          </span>
+          {open ? <ChevronUp size={14} className="text-gray-500" /> : <ChevronDown size={14} className="text-gray-500" />}
+        </div>
+      </button>
+
+      {open && (
+        <div className="mt-5 border-t border-white/5 pt-5 space-y-3">
+          {WORKFLOW_STAGES.map((stage, i) => {
+            const status = getStageStatus(stage);
+            return (
+              <div key={stage.phase} className="rounded-lg bg-white/[0.02] border border-white/5 p-4">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="flex flex-col items-center">
+                      <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-xs font-bold text-indigo-400">{i + 1}</div>
+                      {i < WORKFLOW_STAGES.length - 1 && <div className="w-px h-4 bg-white/10 mt-1" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-base">{stage.emoji}</span>
+                        <h4 className="text-sm font-bold">{stage.label}</h4>
+                        {stage.required ? (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">필수</span>
+                        ) : (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-400">선택</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 leading-relaxed">{stage.description}</p>
+                    </div>
+                  </div>
+                  {status.ready ? (
+                    <span className="text-[10px] px-2 py-1 rounded-full bg-green-500/10 text-green-400 flex-shrink-0">✓ 준비됨</span>
+                  ) : (
+                    <span className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 text-amber-400 flex-shrink-0">⚠ {status.reason}</span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 ml-11">
+                  {/* 사용 직원 */}
+                  <div className="p-2 rounded bg-white/[0.03]">
+                    <p className="text-[9px] text-gray-500 uppercase mb-1">사용 직원</p>
+                    <div className="flex flex-wrap gap-1">
+                      {stage.agents.slice(0, 4).map((a) => (
+                        <span key={a.id} className="text-[10px] text-gray-300">{a.name}</span>
+                      ))}
+                      {stage.agents.length > 4 && <span className="text-[10px] text-gray-500">+{stage.agents.length - 4}</span>}
+                    </div>
+                  </div>
+                  {/* 서비스 */}
+                  <div className="p-2 rounded bg-white/[0.03]">
+                    <p className="text-[9px] text-gray-500 uppercase mb-1">AI 서비스</p>
+                    <p className="text-[10px] text-blue-400 truncate">{stage.service}</p>
+                  </div>
+                  {/* 모델 */}
+                  <div className="p-2 rounded bg-white/[0.03]">
+                    <p className="text-[9px] text-gray-500 uppercase mb-1">기본 모델</p>
+                    <p className="text-[10px] text-purple-400 font-mono truncate">{stage.defaultModel}</p>
+                  </div>
+                  {/* 비용 */}
+                  <div className="p-2 rounded bg-white/[0.03]">
+                    <p className="text-[9px] text-gray-500 uppercase mb-1">호출 / 예상비용</p>
+                    <p className="text-[10px] text-emerald-400">{stage.callsPerCampaign}</p>
+                    <p className="text-[10px] text-emerald-400 font-mono">{stage.estimatedCost}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          <div className="mt-4 p-3 rounded-lg bg-indigo-500/5 border border-indigo-500/20">
+            <p className="text-[11px] text-indigo-300 leading-relaxed">
+              💡 <strong>LLM 모델 자동 선택:</strong> 등록된 키 중 OpenAI → Claude → Gemini 순서로 우선 사용됩니다.
+              실제 호출되는 모델과 토큰 사용량은 캠페인 상세 → "비용 분석" 페이지에서 확인할 수 있습니다.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
