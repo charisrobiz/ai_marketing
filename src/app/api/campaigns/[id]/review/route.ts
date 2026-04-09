@@ -29,7 +29,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   const { data: campaign } = await supabase.from('campaigns').select('*').eq('id', campaignId).single();
   if (!campaign) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const mode = (campaign.mode || 'production') as 'demo' | 'production';
+  const mode = (campaign.campaign_mode || 'production') as 'demo' | 'production';
   const productInfo = campaign.product_info;
   const { data: creatives } = await supabase.from('creatives').select('*').eq('campaign_id', campaignId);
 

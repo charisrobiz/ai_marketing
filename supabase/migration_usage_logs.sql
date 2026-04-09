@@ -24,8 +24,8 @@ CREATE TABLE IF NOT EXISTS ai_usage_logs (
   -- 비용 (USD)
   cost_usd NUMERIC(12, 8) NOT NULL DEFAULT 0,
 
-  -- 모드 분리 (demo 캠페인 비용 별도 집계)
-  mode TEXT NOT NULL DEFAULT 'production',
+  -- 모드 분리 (demo 캠페인 비용 별도 집계) - mode는 예약어라 campaign_mode 사용
+  campaign_mode TEXT NOT NULL DEFAULT 'production',
 
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -34,7 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_usage_campaign ON ai_usage_logs(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_usage_agent ON ai_usage_logs(agent_id);
 CREATE INDEX IF NOT EXISTS idx_usage_phase ON ai_usage_logs(phase);
 CREATE INDEX IF NOT EXISTS idx_usage_created ON ai_usage_logs(created_at);
-CREATE INDEX IF NOT EXISTS idx_usage_mode ON ai_usage_logs(mode);
+CREATE INDEX IF NOT EXISTS idx_usage_mode ON ai_usage_logs(campaign_mode);
 
 ALTER TABLE ai_usage_logs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all for anon" ON ai_usage_logs FOR ALL USING (true) WITH CHECK (true);

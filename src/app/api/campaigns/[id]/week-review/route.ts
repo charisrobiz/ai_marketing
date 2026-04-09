@@ -87,7 +87,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { data: campaign } = await supabase.from('campaigns').select('*').eq('id', campaignId).single();
   if (!campaign) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const mode = (campaign.mode || 'production') as 'demo' | 'production';
+  const mode = (campaign.campaign_mode || 'production') as 'demo' | 'production';
   const productInfo = campaign.product_info;
   const nextWeek = currentWeek + 1;
   const settings = await getSettings();

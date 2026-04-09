@@ -42,7 +42,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 
   return NextResponse.json({
     id: campaign.id,
-    mode: campaign.mode || 'production',
+    mode: campaign.campaign_mode || 'production',
     productInfo: campaign.product_info,
     status: campaign.status,
     createdAt: campaign.created_at,

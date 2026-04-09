@@ -59,7 +59,7 @@ export async function logLLMUsage(context: UsageContext, response: LLMResponse):
     input_tokens: response.inputTokens,
     output_tokens: response.outputTokens,
     cost_usd: cost,
-    mode: context.mode || 'production',
+    campaign_mode: context.mode || 'production',
   });
 }
 
@@ -81,6 +81,6 @@ export async function logMediaUsage(
     media_type: mediaType,
     media_count: count,
     cost_usd: cost,
-    mode: context.mode || 'production',
+    campaign_mode: context.mode || 'production',
   });
 }
