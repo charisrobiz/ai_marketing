@@ -6,8 +6,15 @@ import { logLLMUsage } from '@/lib/usage/tracker';
 async function getSettings() {
   const { data: rows } = await supabase.from('settings').select('key, value');
   const map: Record<string, string> = {};
-  for (const r of rows || []) map[r.key] = r.value;
-  return map;
+  let modelOverrides: Record<string, string> = {};
+  for (const r of rows || []) {
+    if (r.key === 'modelOverrides') {
+      try { modelOverrides = JSON.parse(r.value); } catch { /* */ }
+    } else {
+      map[r.key] = r.value;
+    }
+  }
+  return { ...map, modelOverrides } as Record<string, string> & { modelOverrides: Record<string, string> };
 }
 
 async function addEvent(campaignId: string, agentId: string, agentName: string, type: string, content: string) {
@@ -96,7 +103,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
         openaiApiKey: settings.openaiApiKey || '',
         claudeApiKey: settings.claudeApiKey || '',
         geminiApiKey: settings.geminiApiKey || '',
-      }, prompt, 'analysis');
+      }, prompt, 'analysis', settings.modelOverrides?.['review']);
 
       await logLLMUsage({ campaignId, agentId: 'hana', agentName: '하나', phase: 'review', taskDescription: `소재 검토 (${creative.angle})`, mode }, response);
       reviewResult = parseJSONResponse(response.content);

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import { Settings, Eye, EyeOff, Save, CheckCircle, HelpCircle, X, ExternalLink, BookOpen, Download, ChevronDown, ChevronUp, Share2, Workflow } from 'lucide-react';
+import { AVAILABLE_MODELS } from '@/types';
 import SocialChannelManager from '@/components/admin/SocialChannelManager';
 import type { AdminSettings } from '@/types';
 
@@ -727,7 +728,17 @@ export default function AdminPage() {
       </CollapsibleCard>
 
       {/* AI Workflow Map */}
-      <AIWorkflowMap settings={localSettings} collapsed={collapsed} onToggle={toggle} />
+      <AIWorkflowMap
+        settings={localSettings}
+        onModelChange={(phase, model) => {
+          setLocalSettings((prev) => ({
+            ...prev,
+            modelOverrides: { ...(prev.modelOverrides || {}), [phase]: model },
+          }));
+        }}
+        collapsed={collapsed}
+        onToggle={toggle}
+      />
 
       {/* Save */}
       <button
@@ -756,7 +767,8 @@ interface WorkflowStage {
   agents: Array<{ id: string; name: string; role: string }>;
   service: string;
   taskType: 'simple' | 'analysis' | 'media';
-  defaultModel: string;
+  defaultModel: string;          // 자동 선택될 기본 모델 (현재 키 기반)
+  modelGroup: 'simple' | 'analysis' | 'image' | 'video';  // 드롭다운에 보여줄 그룹
   description: string;
   callsPerCampaign: string;
   estimatedCost: string;
@@ -780,7 +792,8 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
     ],
     service: 'LLM (저렴 우선)',
     taskType: 'simple',
-    defaultModel: 'gpt-4o-mini → gemini-2.5-flash → claude-sonnet-4',
+    modelGroup: 'simple',
+    defaultModel: 'gpt-4o-mini',
     description: '8명 팀원 전체가 캠페인 킥오프 회의를 진행. 한 번의 LLM 호출로 모든 팀원 대화 생성.',
     callsPerCampaign: '1회',
     estimatedCost: '~$0.001',
@@ -793,7 +806,8 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
     agents: [{ id: 'minseo', name: '민서', role: '마케팅 전략가' }],
     service: 'LLM (분석 우선)',
     taskType: 'analysis',
-    defaultModel: 'claude-sonnet-4 → gpt-4o → gemini-2.5-pro',
+    modelGroup: 'analysis',
+    defaultModel: 'claude-sonnet-4-20250514',
     description: '캠페인 유형(긴급/단기/표준/장기)에 맞는 일별 마케팅 플랜 수립. 정확한 전략 분석 필요.',
     callsPerCampaign: '1회',
     estimatedCost: '~$0.02',
@@ -809,7 +823,8 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
     ],
     service: 'LLM (저렴 우선)',
     taskType: 'simple',
-    defaultModel: 'gpt-4o-mini → gemini-2.5-flash → claude-sonnet-4',
+    modelGroup: 'simple',
+    defaultModel: 'gpt-4o-mini',
     description: '플랫폼별 5가지 앵글의 카피 생성. 채널 톤/포맷/해시태그 자동 반영.',
     callsPerCampaign: '3회 (Day 1, 2, 3)',
     estimatedCost: '~$0.003',
@@ -822,7 +837,8 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
     agents: [{ id: 'yuna', name: '유나', role: '크리에이티브 디렉터' }],
     service: 'Gemini Nano Banana 2',
     taskType: 'media',
-    defaultModel: 'gemini-2.0-flash-exp (이미지 전용)',
+    modelGroup: 'image',
+    defaultModel: 'gemini-2.5-flash-image',
     description: '각 소재별 마케팅 이미지를 AI로 자동 생성. CEO 참고 이미지 스타일 반영.',
     callsPerCampaign: '~15회 (소재 수만큼)',
     estimatedCost: '~$0.60',
@@ -835,6 +851,7 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
     agents: [{ id: 'doha', name: '도하', role: '모션 디자이너' }],
     service: 'Runway Gen-4 Turbo',
     taskType: 'media',
+    modelGroup: 'video',
     defaultModel: 'gen4_turbo',
     description: '이미지 기반 5초 숏폼 영상 생성. CEO 업로드 영상을 우선 소스로 사용.',
     callsPerCampaign: '3회 (상위 3개 소재)',
@@ -848,7 +865,8 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
     agents: [{ id: 'yuna', name: '유나', role: '크리에이티브 디렉터' }],
     service: 'Figma API + Gemini',
     taskType: 'media',
-    defaultModel: 'gemini-2.0-flash-exp (이미지 합성)',
+    modelGroup: 'image',
+    defaultModel: 'gemini-2.5-flash-image',
     description: 'Figma 템플릿에 AI 카피+이미지를 합성하여 플랫폼별 광고 배너 생성.',
     callsPerCampaign: '~9회 (3소재 × 3플랫폼)',
     estimatedCost: '~$0.36',
@@ -861,7 +879,8 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
     agents: [{ id: 'eunji', name: '은지', role: '데이터 엔지니어' }],
     service: 'LLM (저렴 우선)',
     taskType: 'simple',
-    defaultModel: 'gpt-4o-mini → gemini-2.5-flash → claude-sonnet-4',
+    modelGroup: 'simple',
+    defaultModel: 'gpt-4o-mini',
     description: '100인 AI 심사위원단이 각 소재를 평가. 10명 실제 호출 + 90명 시뮬레이션. 단순 점수라 저렴 모델.',
     callsPerCampaign: '~150회 (15소재 × 10심사위원)',
     estimatedCost: '~$0.05',
@@ -874,7 +893,8 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
     agents: [{ id: 'hana', name: '하나', role: '본부장' }],
     service: 'LLM (분석 우선)',
     taskType: 'analysis',
-    defaultModel: 'claude-sonnet-4 → gpt-4o → gemini-2.5-pro',
+    modelGroup: 'analysis',
+    defaultModel: 'claude-sonnet-4-20250514',
     description: '각 소재를 브랜드 일관성, 타겟 적합성, 비용 효율 4차원으로 평가. 정확한 분석 필요.',
     callsPerCampaign: '~15회 (소재 수만큼)',
     estimatedCost: '~$0.30',
@@ -894,7 +914,8 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
     ],
     service: 'LLM (분석 우선) + 외부 API',
     taskType: 'analysis',
-    defaultModel: 'claude-sonnet-4 → gpt-4o → gemini-2.5-pro',
+    modelGroup: 'analysis',
+    defaultModel: 'claude-sonnet-4-20250514',
     description: '실제 외부 API 지표 수집 → 은지 분석 → 4명 의견 → 본부장 종합 결정. 데이터 분석 정확도 중요.',
     callsPerCampaign: '6회 × 4주 = 24회',
     estimatedCost: '~$0.50',
@@ -912,7 +933,8 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
     ],
     service: 'LLM (저렴 우선)',
     taskType: 'simple',
-    defaultModel: 'gpt-4o-mini → gemini-2.5-flash',
+    modelGroup: 'simple',
+    defaultModel: 'gpt-4o-mini',
     description: '미보유 채널의 알고리즘 최적화 계정 설정 추천 (이름, 바이오, 카테고리).',
     callsPerCampaign: '플랫폼당 1회',
     estimatedCost: '~$0.002/플랫폼',
@@ -920,13 +942,43 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
   },
 ];
 
+// 모델 그룹별 사용 가능한 옵션
+function getModelOptionsForGroup(group: 'simple' | 'analysis' | 'image' | 'video'): Array<{ value: string; label: string }> {
+  if (group === 'image') {
+    return [
+      { value: 'gemini-2.5-flash-image', label: 'Gemini 2.5 Flash Image (Nano Banana 2)' },
+    ];
+  }
+  if (group === 'video') {
+    return [
+      { value: 'gen4_turbo', label: 'Runway Gen-4 Turbo' },
+    ];
+  }
+  // simple/analysis는 모든 LLM 사용 가능
+  return [
+    ...AVAILABLE_MODELS.openai,
+    ...AVAILABLE_MODELS.claude,
+    ...AVAILABLE_MODELS.gemini,
+  ];
+}
+
 const TASK_TYPE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   simple: { label: '단순 작업', color: 'text-blue-400', bg: 'bg-blue-500/10' },
   analysis: { label: '분석/추론', color: 'text-purple-400', bg: 'bg-purple-500/10' },
   media: { label: '미디어 생성', color: 'text-pink-400', bg: 'bg-pink-500/10' },
 };
 
-function AIWorkflowMap({ settings, collapsed, onToggle }: { settings: AdminSettings; collapsed: Record<string, boolean>; onToggle: (key: string) => void }) {
+function AIWorkflowMap({
+  settings,
+  onModelChange,
+  collapsed,
+  onToggle,
+}: {
+  settings: AdminSettings;
+  onModelChange: (phase: string, model: string) => void;
+  collapsed: Record<string, boolean>;
+  onToggle: (key: string) => void;
+}) {
   const getStageStatus = (stage: WorkflowStage): { ready: boolean; reason?: string } => {
     if (stage.phase === 'image' || stage.phase === 'banner') {
       if (!settings.geminiApiKey) return { ready: false, reason: 'Gemini 키 필요' };
@@ -1029,10 +1081,30 @@ function AIWorkflowMap({ settings, collapsed, onToggle }: { settings: AdminSetti
                     <p className="text-[9px] text-gray-500 uppercase mb-1">AI 서비스</p>
                     <p className="text-[10px] text-blue-400 truncate">{stage.service}</p>
                   </div>
-                  {/* 모델 */}
+                  {/* 모델 (선택 가능) */}
                   <div className="p-2 rounded bg-white/[0.03]">
-                    <p className="text-[9px] text-gray-500 uppercase mb-1">기본 모델</p>
-                    <p className="text-[10px] text-purple-400 font-mono truncate">{stage.defaultModel}</p>
+                    <p className="text-[9px] text-gray-500 uppercase mb-1">사용 모델</p>
+                    {(() => {
+                      const currentModel = settings.modelOverrides?.[stage.phase] || stage.defaultModel;
+                      const options = getModelOptionsForGroup(stage.modelGroup);
+                      const matchedOption = options.find((o) => o.value === currentModel);
+                      const displayLabel = matchedOption?.label || currentModel;
+                      return (
+                        <select
+                          value={currentModel}
+                          onChange={(e) => onModelChange(stage.phase, e.target.value)}
+                          title={displayLabel}
+                          className="w-full bg-transparent text-[10px] text-purple-400 font-mono outline-none cursor-pointer hover:text-purple-300 truncate"
+                          style={{ maxWidth: '100%' }}
+                        >
+                          {options.map((opt) => (
+                            <option key={opt.value} value={opt.value} className="bg-[#1a1a2e] text-purple-300">
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      );
+                    })()}
                   </div>
                   {/* 비용 */}
                   <div className="p-2 rounded bg-white/[0.03]">

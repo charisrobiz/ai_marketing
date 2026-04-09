@@ -134,11 +134,41 @@ function selectProviderAndModel(
   return null;
 }
 
+// 모델 ID로부터 provider 추측
+function detectProvider(model: string): Provider | null {
+  if (model.startsWith('gpt-')) return 'openai';
+  if (model.startsWith('claude-')) return 'claude';
+  if (model.startsWith('gemini-')) return 'gemini';
+  return null;
+}
+
 export async function callLLM(
   settings: LLMSettings,
   prompt: string,
-  taskType: TaskType = 'simple'
+  taskType: TaskType = 'simple',
+  overrideModel?: string
 ): Promise<LLMResponse> {
+  // override 모델이 지정되면 우선 사용 (provider 자동 감지 + 키 확인)
+  if (overrideModel) {
+    const provider = detectProvider(overrideModel);
+    if (provider) {
+      const keyMap: Record<Provider, string | undefined> = {
+        openai: settings.openaiApiKey,
+        claude: settings.claudeApiKey,
+        gemini: settings.geminiApiKey,
+      };
+      const apiKey = keyMap[provider];
+      if (apiKey) {
+        switch (provider) {
+          case 'openai': return callOpenAI(apiKey, prompt, overrideModel);
+          case 'claude': return callClaude(apiKey, prompt, overrideModel);
+          case 'gemini': return callGemini(apiKey, prompt, overrideModel);
+        }
+      }
+      // override 모델의 API 키가 없으면 자동 선택으로 fallback
+    }
+  }
+
   const selected = selectProviderAndModel(settings, taskType);
   if (!selected) {
     throw new Error('API 키가 설정되지 않았습니다. 관리자 페이지에서 API 키를 입력해주세요.');

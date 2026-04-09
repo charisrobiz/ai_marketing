@@ -21,6 +21,7 @@ async function getSettings() {
     geminiApiKey: map['geminiApiKey'] || '',
     runwayApiKey: map['runwayApiKey'] || '',
     figmaApiKey: map['figmaApiKey'] || '',
+    modelOverrides: map['modelOverrides'] ? JSON.parse(map['modelOverrides']) : {},
   };
 }
 
@@ -93,7 +94,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     // Production: 진짜 AI로 킥오프 대화 생성
     try {
       const kickoffPrompt = buildKickoffMeetingPrompt(productInfo, options.campaignType || 'standard');
-      const kickoffRes = await callLLM(settings, kickoffPrompt, 'simple');
+      const kickoffRes = await callLLM(settings, kickoffPrompt, 'simple', settings.modelOverrides?.['kickoff']);
       await logLLMUsage({ campaignId, agentId: 'hana', agentName: '하나', phase: 'kickoff', taskDescription: '킥오프 미팅 대화', mode }, kickoffRes);
       const kickoffMessages = parseJSONResponse<Array<{ agent: string; name: string; message: string }>>(kickoffRes.content);
       for (const msg of kickoffMessages) {
@@ -135,7 +136,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
       ? `\n\n[보유 채널] ${registeredChannels.join(', ')}. 보유한 채널을 우선적으로 활용하세요.`
       : '';
     const prompt = buildPlanPrompt(productInfo, campaignMedia, options.campaignType || 'standard') + channelContext;
-    const response = await callLLM(settings, prompt, 'analysis');
+    const response = await callLLM(settings, prompt, 'analysis', settings.modelOverrides?.['plan']);
     await logLLMUsage({ campaignId, agentId: 'minseo', agentName: '민서', phase: 'plan', taskDescription: '30일 마케팅 플랜 생성', mode }, response);
     plans = parseJSONResponse<Array<{ day: number; week: number; title: string; description: string; channels: string[]; target: string; goal: string }>>(response.content);
     await addEvent(campaignId, 'minseo', '민서', 'plan', `니치밴딩 기반 30일 플랜 완료! ${plans.length}일치 (${response.model})`);
@@ -186,7 +187,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     let creatives;
     try {
       const prompt = buildCreativePrompt(productInfo, plan.day, plan.title, platform, campaignMedia);
-      const response = await callLLM(settings, prompt, 'simple');
+      const response = await callLLM(settings, prompt, 'simple', settings.modelOverrides?.['creative']);
       await logLLMUsage({ campaignId, agentId: 'jiwoo', agentName: '지우', phase: 'creative', taskDescription: `Day ${plan.day} ${platform} 카피 생성`, mode }, response);
       creatives = parseJSONResponse<Array<{ angle: string; hookingText: string; copyText: string; imagePrompt?: string }>>(response.content);
     } catch (err) {
@@ -346,7 +347,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
           juror.name, juror.description, juror.age, juror.gender,
           creative.hooking_text, creative.copy_text, creative.angle, productInfo.name
         );
-        const response = await callLLM(settings, prompt, 'simple');
+        const response = await callLLM(settings, prompt, 'simple', settings.modelOverrides?.['vote']);
         await logLLMUsage({ campaignId, agentId: 'eunji', agentName: '은지', phase: 'vote', taskDescription: '심사위원 투표', mode }, response);
         const result = parseJSONResponse<{ score: number; comment: string }>(response.content);
         score = Math.min(10, Math.max(1, result.score));

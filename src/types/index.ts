@@ -366,7 +366,33 @@ export interface AdminSettings {
   defaultBudget: number;
   autoDeployEnabled: boolean;
   ceoApprovalLevel: 'auto' | 'ceo_final' | 'ceo_notify';
+  // Phase별 모델 오버라이드 (사용자가 워크플로우 맵에서 변경 가능)
+  modelOverrides?: Record<string, string>;
 }
+
+// 사용 가능한 모델 목록 (드롭다운용)
+export const AVAILABLE_MODELS = {
+  openai: [
+    { value: 'gpt-4o-mini', label: 'GPT-4o mini (저렴/빠름)' },
+    { value: 'gpt-4o', label: 'GPT-4o (균형/멀티모달)' },
+    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+  ],
+  claude: [
+    { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (분석 1위)' },
+    { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
+    { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (저렴)' },
+  ],
+  gemini: [
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (저렴/빠름)' },
+    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (최저가)' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (분석)' },
+    { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview (최신)' },
+  ],
+  media: [
+    { value: 'gemini-2.5-flash-image', label: 'Gemini 2.5 Flash Image (이미지 생성)' },
+    { value: 'gen4_turbo', label: 'Runway Gen-4 Turbo (동영상)' },
+  ],
+};
 
 // === Category Labels ===
 export const CATEGORY_LABELS: Record<ProductCategory, string> = {

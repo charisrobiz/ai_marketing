@@ -153,6 +153,7 @@ const DEFAULT_SETTINGS: AdminSettings = {
   geminiApiKey: '',
   figmaApiKey: '',
   runwayApiKey: '',
+  modelOverrides: {},
   metaAdsToken: '',
   metaAdAccountId: '',
   googleAdsToken: '',
