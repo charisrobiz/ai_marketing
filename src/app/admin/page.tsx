@@ -415,12 +415,96 @@ function GuidePopup({ guide, onClose }: { guide: KeyGuide; onClose: () => void }
 }
 
 // === Main Admin Page ===
+// 접힘 상태 관리 훅 (localStorage 동기화)
+function useCollapsibleState() {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('admin_collapsed_cards');
+      if (saved) setCollapsed(JSON.parse(saved));
+    } catch { /* empty */ }
+    setHydrated(true);
+  }, []);
+
+  const toggle = (key: string) => {
+    setCollapsed((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem('admin_collapsed_cards', JSON.stringify(next)); } catch { /* empty */ }
+      return next;
+    });
+  };
+
+  const setAll = (keys: string[], value: boolean) => {
+    const next: Record<string, boolean> = {};
+    for (const k of keys) next[k] = value;
+    setCollapsed(next);
+    try { localStorage.setItem('admin_collapsed_cards', JSON.stringify(next)); } catch { /* empty */ }
+  };
+
+  return { collapsed, toggle, setAll, hydrated };
+}
+
+interface CollapsibleCardProps {
+  cardKey: string;
+  title: string;
+  description?: string;
+  badge?: React.ReactNode;
+  icon?: React.ReactNode;
+  titleColor?: string;
+  defaultOpen?: boolean;
+  collapsed: Record<string, boolean>;
+  onToggle: (key: string) => void;
+  children: React.ReactNode;
+}
+
+function CollapsibleCard({ cardKey, title, description, badge, icon, titleColor, defaultOpen = true, collapsed, onToggle, children }: CollapsibleCardProps) {
+  const isCollapsed = collapsed[cardKey] ?? !defaultOpen;
+
+  return (
+    <div className="glass-card mb-4 overflow-hidden">
+      <button
+        onClick={() => onToggle(cardKey)}
+        className="w-full flex items-center justify-between p-6 hover:bg-white/[0.02] transition-colors"
+      >
+        <div className="flex items-center gap-3 text-left">
+          {icon}
+          <div>
+            <h2 className={`text-base font-semibold ${titleColor || 'text-white'}`}>{title}</h2>
+            {description && <p className="text-xs text-gray-500 mt-0.5">{description}</p>}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {badge}
+          <ChevronDown
+            size={16}
+            className={`text-gray-500 transition-transform duration-300 ${isCollapsed ? '' : 'rotate-180'}`}
+          />
+        </div>
+      </button>
+      <div
+        className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+          isCollapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="px-6 pb-6 pt-0 border-t border-white/5">
+            <div className="pt-4">{children}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { settings, updateSettings } = useStore();
   const [localSettings, setLocalSettings] = useState(settings);
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [saved, setSaved] = useState(false);
   const [activeGuide, setActiveGuide] = useState<KeyGuide | null>(null);
+  const { collapsed, toggle, setAll } = useCollapsibleState();
 
   useEffect(() => {
     setLocalSettings(settings);
@@ -446,27 +530,49 @@ export default function AdminPage() {
   const getConfiguredCount = (fields: KeyField[]) =>
     fields.filter((f) => typeof localSettings[f.key] === 'string' && (localSettings[f.key] as string).length > 0).length;
 
+  const allCardKeys = [
+    'social_channels',
+    ...SECTIONS.map((s) => `section_${s.title}`),
+    'general_settings',
+    'ai_workflow_map',
+    'admin_manual',
+  ];
+  const allCollapsed = allCardKeys.every((k) => collapsed[k]);
+
+  const toggleAll = () => {
+    setAll(allCardKeys, !allCollapsed);
+  };
+
   return (
     <div className="max-w-3xl mx-auto py-8">
-      <div className="flex items-center gap-3 mb-8">
-        <Settings className="w-6 h-6 text-gray-400" />
-        <div>
-          <h1 className="text-2xl font-bold">관리자 설정</h1>
-          <p className="text-gray-500 text-sm mt-0.5">API 키 및 외부 서비스 연동을 관리합니다</p>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <Settings className="w-6 h-6 text-gray-400" />
+          <div>
+            <h1 className="text-2xl font-bold">관리자 설정</h1>
+            <p className="text-gray-500 text-sm mt-0.5">API 키 및 외부 서비스 연동을 관리합니다</p>
+          </div>
         </div>
+        <button
+          onClick={toggleAll}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+        >
+          {allCollapsed ? <><ChevronDown size={13} /> 모두 펼치기</> : <><ChevronUp size={13} /> 모두 접기</>}
+        </button>
       </div>
 
       {/* Social Channel Management */}
-      <div className="glass-card p-6 mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Share2 className="w-5 h-5 text-pink-400" />
-          <div>
-            <h3 className="text-base font-bold">소셜 채널 관리</h3>
-            <p className="text-xs text-gray-500">마케팅 채널 등록 및 AI 계정 설정 추천</p>
-          </div>
-        </div>
+      <CollapsibleCard
+        cardKey="social_channels"
+        title="소셜 채널 관리"
+        description="마케팅 채널 등록 및 AI 계정 설정 추천"
+        icon={<Share2 className="w-5 h-5 text-pink-400" />}
+        titleColor="text-pink-400"
+        collapsed={collapsed}
+        onToggle={toggle}
+      >
         <SocialChannelManager />
-      </div>
+      </CollapsibleCard>
 
       {/* Connection Status Overview */}
       <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-6">
@@ -486,13 +592,29 @@ export default function AdminPage() {
       </div>
 
       {/* Sections */}
-      {SECTIONS.map((section) => (
-        <div key={section.title} className="glass-card p-6 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className={`text-base font-semibold ${section.color}`}>{section.title}</h2>
-            <span className="text-[10px] text-gray-500">{getConfiguredCount(section.fields)}/{section.fields.length} 설정됨</span>
-          </div>
-          <p className="text-xs text-gray-500 mb-4">{section.description}</p>
+      {SECTIONS.map((section) => {
+        const configured = getConfiguredCount(section.fields);
+        const total = section.fields.length;
+        const statusBadge = (
+          <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+            configured === total ? 'bg-green-500/10 text-green-400' :
+            configured === 0 ? 'bg-gray-500/10 text-gray-500' :
+            'bg-amber-500/10 text-amber-400'
+          }`}>
+            {configured}/{total}
+          </span>
+        );
+        return (
+        <CollapsibleCard
+          key={section.title}
+          cardKey={`section_${section.title}`}
+          title={section.title}
+          description={section.description}
+          titleColor={section.color}
+          badge={statusBadge}
+          collapsed={collapsed}
+          onToggle={toggle}
+        >
           <div className="space-y-3">
             {section.fields.map((field) => (
               <div key={field.key} className="space-y-1">
@@ -541,12 +663,19 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
-        </div>
-      ))}
+        </CollapsibleCard>
+        );
+      })}
 
       {/* General Settings */}
-      <div className="glass-card p-6 mb-4">
-        <h2 className="text-base font-semibold text-gray-300 mb-4">일반 설정</h2>
+      <CollapsibleCard
+        cardKey="general_settings"
+        title="일반 설정"
+        description="예산, 승인 레벨, 자동 배포 등 운영 설정"
+        titleColor="text-gray-300"
+        collapsed={collapsed}
+        onToggle={toggle}
+      >
         <div className="space-y-4">
           <div>
             <label className="text-sm font-medium">기본 마케팅 예산 (원)</label>
@@ -595,10 +724,10 @@ export default function AdminPage() {
             </button>
           </div>
         </div>
-      </div>
+      </CollapsibleCard>
 
       {/* AI Workflow Map */}
-      <AIWorkflowMap settings={localSettings} />
+      <AIWorkflowMap settings={localSettings} collapsed={collapsed} onToggle={toggle} />
 
       {/* Save */}
       <button
@@ -611,7 +740,7 @@ export default function AdminPage() {
       </button>
 
       {/* Admin Manual */}
-      <AdminManual />
+      <AdminManual collapsed={collapsed} onToggle={toggle} />
 
       {/* Guide Popup */}
       {activeGuide && <GuidePopup guide={activeGuide} onClose={() => setActiveGuide(null)} />}
@@ -797,9 +926,7 @@ const TASK_TYPE_LABELS: Record<string, { label: string; color: string; bg: strin
   media: { label: '미디어 생성', color: 'text-pink-400', bg: 'bg-pink-500/10' },
 };
 
-function AIWorkflowMap({ settings }: { settings: AdminSettings }) {
-  const [open, setOpen] = useState(false);
-
+function AIWorkflowMap({ settings, collapsed, onToggle }: { settings: AdminSettings; collapsed: Record<string, boolean>; onToggle: (key: string) => void }) {
   const getStageStatus = (stage: WorkflowStage): { ready: boolean; reason?: string } => {
     if (stage.phase === 'image' || stage.phase === 'banner') {
       if (!settings.geminiApiKey) return { ready: false, reason: 'Gemini 키 필요' };
@@ -829,32 +956,30 @@ function AIWorkflowMap({ settings }: { settings: AdminSettings }) {
   };
   const activeModels = getActiveModels();
 
-  return (
-    <div className="glass-card p-6 mb-6">
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between"
-      >
-        <div className="flex items-center gap-3">
-          <Workflow className="w-5 h-5 text-indigo-400" />
-          <div className="text-left">
-            <h3 className="text-base font-bold">AI 워크플로우 맵</h3>
-            <p className="text-xs text-gray-500">단계별 사용 직원 / AI 서비스 / 모델 / 예상 비용</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] px-2 py-1 rounded-full bg-blue-500/10 text-blue-400">
-            단순: {activeModels.simple}
-          </span>
-          <span className="text-[10px] px-2 py-1 rounded-full bg-purple-500/10 text-purple-400">
-            분석: {activeModels.analysis}
-          </span>
-          {open ? <ChevronUp size={14} className="text-gray-500" /> : <ChevronDown size={14} className="text-gray-500" />}
-        </div>
-      </button>
+  const badge = (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400">
+        단순: {activeModels.simple}
+      </span>
+      <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400">
+        분석: {activeModels.analysis}
+      </span>
+    </div>
+  );
 
-      {open && (
-        <div className="mt-5 border-t border-white/5 pt-5 space-y-3">
+  return (
+    <CollapsibleCard
+      cardKey="ai_workflow_map"
+      title="AI 워크플로우 맵"
+      description="단계별 사용 직원 / AI 서비스 / 모델 / 예상 비용"
+      icon={<Workflow className="w-5 h-5 text-indigo-400" />}
+      titleColor="text-indigo-400"
+      badge={badge}
+      defaultOpen={false}
+      collapsed={collapsed}
+      onToggle={onToggle}
+    >
+        <div className="space-y-3">
           {WORKFLOW_STAGES.map((stage, i) => {
             const status = getStageStatus(stage);
             return (
@@ -934,8 +1059,7 @@ function AIWorkflowMap({ settings }: { settings: AdminSettings }) {
             </p>
           </div>
         </div>
-      )}
-    </div>
+    </CollapsibleCard>
   );
 }
 
@@ -945,69 +1069,59 @@ const ReactMarkdown = require('react-markdown').default;
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const remarkGfm = require('remark-gfm').default;
 
-function AdminManual() {
-  const [open, setOpen] = useState(false);
+function AdminManual({ collapsed, onToggle }: { collapsed: Record<string, boolean>; onToggle: (key: string) => void }) {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
+  const isCollapsed = collapsed['admin_manual'] ?? true;
 
-  const loadManual = async () => {
-    if (content) { setOpen(!open); return; }
-    setOpen(true);
-    setLoading(true);
-    try {
-      const res = await fetch('/manual/admin-manual.md');
-      const text = await res.text();
-      setContent(text);
-    } catch { setContent('매뉴얼을 불러올 수 없습니다.'); }
-    setLoading(false);
-  };
+  useEffect(() => {
+    if (!isCollapsed && !content) {
+      setLoading(true);
+      fetch('/manual/admin-manual.md')
+        .then((res) => res.text())
+        .then((text) => { setContent(text); setLoading(false); })
+        .catch(() => { setContent('매뉴얼을 불러올 수 없습니다.'); setLoading(false); });
+    }
+  }, [isCollapsed, content]);
 
-  const downloadManual = () => {
+  const downloadManual = (e: React.MouseEvent) => {
+    e.stopPropagation();
     const link = document.createElement('a');
     link.href = '/manual/admin-manual.md';
     link.download = 'AutoGrowth_관리자_매뉴얼.md';
     link.click();
   };
 
-  return (
-    <div className="glass-card p-6 mt-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <BookOpen className="w-5 h-5 text-cyan-400" />
-          <div>
-            <h3 className="text-base font-bold">관리자 매뉴얼</h3>
-            <p className="text-xs text-gray-500">시스템 운영 가이드 및 기능 설명서</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={downloadManual}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-          >
-            <Download size={13} /> 다운로드
-          </button>
-          <button
-            onClick={loadManual}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-cyan-600 text-white hover:bg-cyan-500 transition-colors"
-          >
-            {open ? <><ChevronUp size={13} /> 닫기</> : <><ChevronDown size={13} /> 매뉴얼 보기</>}
-          </button>
-        </div>
-      </div>
+  const badge = (
+    <button
+      onClick={downloadManual}
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+    >
+      <Download size={13} /> 다운로드
+    </button>
+  );
 
-      {open && (
-        <div className="mt-5 border-t border-white/5 pt-5">
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : (
-            <div className="manual-content max-h-[70vh] overflow-y-auto pr-2">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-            </div>
-          )}
+  return (
+    <CollapsibleCard
+      cardKey="admin_manual"
+      title="관리자 매뉴얼"
+      description="시스템 운영 가이드 및 기능 설명서"
+      icon={<BookOpen className="w-5 h-5 text-cyan-400" />}
+      titleColor="text-cyan-400"
+      badge={badge}
+      defaultOpen={false}
+      collapsed={collapsed}
+      onToggle={onToggle}
+    >
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        <div className="manual-content max-h-[70vh] overflow-y-auto pr-2">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
         </div>
       )}
-    </div>
+    </CollapsibleCard>
   );
 }
