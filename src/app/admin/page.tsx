@@ -360,6 +360,35 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    title: '텔레그램 알림',
+    description: '캠페인 주요 단계마다 텔레그램으로 알림과 승인 버튼을 받습니다.',
+    color: 'text-sky-400',
+    fields: [
+      {
+        key: 'telegramBotToken', label: 'Telegram Bot Token',
+        description: 'BotFather에서 생성한 봇 토큰', placeholder: '123456:ABC-DEF...',
+        guide: {
+          title: 'Telegram Bot 생성 방법',
+          steps: [
+            '1. 텔레그램에서 @BotFather를 검색하여 대화 시작.',
+            '2. /newbot 명령어 입력.',
+            '3. 봇 이름과 username을 입력 (username은 _bot으로 끝나야 함).',
+            '4. 받은 토큰을 복사하여 여기에 붙여넣기.',
+            '5. 생성한 봇과 대화를 시작 (/start 클릭).',
+            '※ Chat ID는 봇과 메시지를 주고받은 후 자동으로 받을 수 있습니다.',
+            '※ Chat ID 확인: https://api.telegram.org/bot[토큰]/getUpdates 접속 후 "chat":{"id":...} 확인',
+          ],
+          url: 'https://t.me/BotFather',
+          urlLabel: 'BotFather',
+        },
+      },
+      {
+        key: 'telegramChatId', label: 'Telegram Chat ID',
+        description: '알림 받을 채팅 ID', placeholder: '123456789',
+      },
+    ],
+  },
+  {
     title: '디자인',
     description: 'Figma 연동 자동 디자인 합성에 사용됩니다.',
     color: 'text-violet-400',

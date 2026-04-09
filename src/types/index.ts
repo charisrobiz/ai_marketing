@@ -345,6 +345,9 @@ export interface AdminSettings {
   figmaApiKey: string;
   // Media Generation
   runwayApiKey: string;
+  // Telegram Notifications
+  telegramBotToken: string;
+  telegramChatId: string;
   // Ads
   metaAdsToken: string;
   metaAdAccountId: string;

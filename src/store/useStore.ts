@@ -153,6 +153,8 @@ const DEFAULT_SETTINGS: AdminSettings = {
   geminiApiKey: '',
   figmaApiKey: '',
   runwayApiKey: '',
+  telegramBotToken: '',
+  telegramChatId: '',
   modelOverrides: {},
   metaAdsToken: '',
   metaAdAccountId: '',

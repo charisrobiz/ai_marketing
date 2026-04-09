@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/db/supabase';
+import { notifyCEOApproved } from '@/lib/telegram/notifications';
 
 // POST: CEO 승인/반려
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -22,6 +23,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       type: 'system',
       content: `👑 본부장 승인 소재 전체 최종 승인 완료! 광고 집행을 시작합니다.`,
     });
+
+    // 텔레그램 알림: CEO 승인 완료 → Week 1 시작 안내
+    const { data: camp } = await supabase.from('campaigns').select('product_info, campaign_mode').eq('id', campaignId).single();
+    if (camp?.campaign_mode !== 'demo') {
+      const productInfo = camp?.product_info as { name?: string } | null;
+      notifyCEOApproved(campaignId, productInfo?.name || '제품').catch(() => {});
+    }
 
     return NextResponse.json({ status: 'all_approved' });
   }

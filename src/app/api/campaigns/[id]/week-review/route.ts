@@ -3,6 +3,7 @@ import { supabase } from '@/lib/db/supabase';
 import { callLLM, parseJSONResponse } from '@/lib/ai/llmClient';
 import { buildWeeklyAnalysisPrompt, buildAgentOpinionPrompt, buildHeadDecisionPrompt } from '@/lib/ai/prompts';
 import { logLLMUsage } from '@/lib/usage/tracker';
+import { notifyWeekCompleted } from '@/lib/telegram/notifications';
 import { getMetaAdInsights, getMetaInstalls } from '@/lib/integrations/metaAds';
 import { getGoogleAdsMetrics } from '@/lib/integrations/googleAds';
 import { getFirebaseAnalytics } from '@/lib/integrations/firebase';
@@ -212,6 +213,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await supabase.from('daily_plans').update({ status: 'completed' }).eq('campaign_id', campaignId).eq('week', currentWeek);
     await supabase.from('campaigns').update({ status: 'completed', updated_at: new Date().toISOString() }).eq('id', campaignId);
   }
+
+  // 텔레그램 알림: 주간 리뷰 완료 → 다음 주 시작 안내
+  notifyWeekCompleted(
+    campaignId,
+    productInfo.name,
+    currentWeek,
+    nextWeek <= 4 ? nextWeek : null,
+    decision.decision
+  ).catch(() => {});
 
   return NextResponse.json({
     mode: 'production',

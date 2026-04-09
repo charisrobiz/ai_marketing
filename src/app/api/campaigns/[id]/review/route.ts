@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/db/supabase';
 import { callLLM, parseJSONResponse } from '@/lib/ai/llmClient';
 import { logLLMUsage } from '@/lib/usage/tracker';
+import { notifyReviewCompleted } from '@/lib/telegram/notifications';
 
 async function getSettings() {
   const { data: rows } = await supabase.from('settings').select('key, value');
@@ -185,6 +186,11 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     await addEvent(campaignId, 'hana', '하나', 'system',
       `승인된 ${approvedCount}개 소재가 자동 집행됩니다. CEO에게 알림을 발송했습니다.`
     );
+  }
+
+  // 텔레그램 알림: 본부장 검토 완료 → CEO 승인 요청
+  if (mode === 'production') {
+    notifyReviewCompleted(campaignId, productInfo?.name || '제품', approvedCount, revisionCount, rejectedCount).catch(() => {});
   }
 
   return NextResponse.json({ approved: approvedCount, revision: revisionCount, rejected: rejectedCount });

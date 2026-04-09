@@ -8,6 +8,7 @@ import { generateVideo } from '@/lib/media/videoGenerator';
 import { fetchFigmaTemplate } from '@/lib/media/figmaClient';
 import { composeBanner } from '@/lib/media/bannerComposer';
 import { logLLMUsage, logMediaUsage } from '@/lib/usage/tracker';
+import { notifyEngineCompleted } from '@/lib/telegram/notifications';
 import type { ProductInfo, CampaignOptions, CampaignMedia, MediaContent } from '@/types';
 import { CAMPAIGN_TYPE_CONFIG } from '@/types';
 
@@ -401,6 +402,12 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   await addEvent(campaignId, 'hana', '하나', 'system', `니치밴딩 캠페인 파이프라인 완료.`);
   await updateTask(taskPerf, 'completed', '광고 세팅 완료');
   await updateTask(taskDev, 'completed', '파이프라인 정상 운영 완료');
+
+  // 텔레그램 알림: 엔진 완료 → 본부장 검토 승인 요청
+  if (mode === 'production') {
+    const { count: creativeCount } = await supabase.from('creatives').select('id', { count: 'exact', head: true }).eq('campaign_id', campaignId);
+    notifyEngineCompleted(campaignId, productInfo.name, creativeCount || 0).catch(() => {});
+  }
 
   return NextResponse.json({ campaignId, status: 'completed' });
 }
