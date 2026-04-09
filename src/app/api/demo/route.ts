@@ -14,7 +14,7 @@ export async function POST() {
   };
 
   // 1. 캠페인 생성
-  await supabase.from('campaigns').insert({ id: campaignId, product_info: productInfo, status: 'active' });
+  await supabase.from('campaigns').insert({ id: campaignId, mode: 'demo', product_info: productInfo, status: 'active' });
 
   // 2. 30일 플랜 생성
   const plans = [

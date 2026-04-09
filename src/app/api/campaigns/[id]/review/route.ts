@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/db/supabase';
 import { callLLM, parseJSONResponse } from '@/lib/ai/llmClient';
+import { logLLMUsage } from '@/lib/usage/tracker';
 
 async function getSettings() {
   const { data: rows } = await supabase.from('settings').select('key, value');
@@ -28,8 +29,17 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   const { data: campaign } = await supabase.from('campaigns').select('*').eq('id', campaignId).single();
   if (!campaign) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  const mode = (campaign.mode || 'production') as 'demo' | 'production';
   const productInfo = campaign.product_info;
   const { data: creatives } = await supabase.from('creatives').select('*').eq('campaign_id', campaignId);
+
+  // production 모드는 LLM 키 필수
+  if (mode === 'production') {
+    const hasLLMKey = settings.openaiApiKey || settings.claudeApiKey || settings.geminiApiKey;
+    if (!hasLLMKey) {
+      return NextResponse.json({ error: '본부장 검토에는 AI LLM API 키가 필요합니다.' }, { status: 400 });
+    }
+  }
 
   if (!creatives || creatives.length === 0) return NextResponse.json({ error: 'No creatives' }, { status: 400 });
 
@@ -88,9 +98,15 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
         geminiApiKey: settings.geminiApiKey || '',
       }, prompt);
 
+      await logLLMUsage({ campaignId, agentId: 'hana', agentName: '하나', phase: 'review', taskDescription: `소재 검토 (${creative.angle})`, mode }, response);
       reviewResult = parseJSONResponse(response.content);
-    } catch {
-      // Fallback: 자동 검토 (점수 기반)
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
+      if (mode === 'production') {
+        // production은 에러 반환
+        return NextResponse.json({ error: `본부장 검토 실패: ${errMsg}` }, { status: 500 });
+      }
+      // demo 모드만 fallback
       const { data: voteData } = await supabase.from('votes').select('score').eq('creative_id', creative.id);
       const avgScore = voteData && voteData.length > 0
         ? voteData.reduce((sum, v) => sum + v.score, 0) / voteData.length
@@ -103,7 +119,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
         target_fit: score,
         cost_efficiency: Math.min(10, score),
         status: score >= 7 ? 'approved' : score >= 4 ? 'revision_requested' : 'rejected',
-        comment: score >= 7 ? '심사위원 평가 우수, 집행 승인' : score >= 4 ? '카피 보강 필요' : '컨셉 재검토 필요',
+        comment: score >= 7 ? '[데모] 평가 우수' : score >= 4 ? '[데모] 카피 보강 필요' : '[데모] 컨셉 재검토',
         revision_note: score < 7 ? '후킹 문구의 임팩트를 강화하고, CTA를 더 명확하게 수정해주세요.' : '',
       };
     }

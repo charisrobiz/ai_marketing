@@ -12,7 +12,7 @@ import VotingArena from '@/components/campaign/VotingArena';
 import CardNewsPreview from '@/components/campaign/CardNewsPreview';
 import {
   ArrowLeft, Rocket, Loader2, MessageCircle, ClipboardList, Download,
-  Eye, BarChart3, Palette, Pause, Play, Trash2, Pencil, ChevronRight, ImagePlus,
+  Eye, BarChart3, Palette, Pause, Play, Trash2, Pencil, ChevronRight, ImagePlus, DollarSign,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -180,7 +180,18 @@ export default function CampaignDetailPage() {
         </Link>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">{campaign.productInfo.name}</h1>
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-3xl font-bold">{campaign.productInfo.name}</h1>
+              {campaign.mode === 'demo' ? (
+                <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-gray-500/20 text-gray-300 border border-gray-500/30">
+                  🎬 데모
+                </span>
+              ) : (
+                <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                  🚀 실제 캠페인
+                </span>
+              )}
+            </div>
             <p className="text-gray-500 text-sm mt-1">
               {CATEGORY_LABELS[campaign.productInfo.category]} &middot;{' '}
               {new Date(campaign.createdAt).toLocaleDateString('ko-KR')}
@@ -245,8 +256,25 @@ export default function CampaignDetailPage() {
         </div>
       </div>
 
+      {/* Demo Mode Banner */}
+      {campaign.mode === 'demo' && (
+        <div className="glass-card p-3 mb-6 border-l-4 border-amber-500/50 bg-amber-500/5">
+          <p className="text-xs text-amber-300">
+            🎬 <strong>데모 캠페인입니다.</strong> 이 캠페인의 모든 데이터(메트릭, 대화, 소재, 투표)는 시뮬레이션이며, 실제 AI 호출 및 비용이 발생하지 않습니다.
+          </p>
+        </div>
+      )}
+
       {/* Quick Links */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-7 gap-3 mb-6">
+        <Link href={`/campaign/${id}/cost`}
+          className="glass-card p-4 flex items-center gap-3 hover:border-emerald-500/30 transition-colors">
+          <DollarSign className="w-5 h-5 text-emerald-400" />
+          <div>
+            <p className="text-sm font-medium">비용 분석</p>
+            <p className="text-[10px] text-gray-500">토큰·비용 추적</p>
+          </div>
+        </Link>
         <Link href={`/campaign/${id}/media`}
           className="glass-card p-4 flex items-center gap-3 hover:border-pink-500/30 transition-colors">
           <ImagePlus className="w-5 h-5 text-pink-400" />

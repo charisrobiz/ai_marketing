@@ -1,11 +1,18 @@
 // Unified LLM client that supports OpenAI, Claude, and Gemini
 
-interface LLMResponse {
+export type Provider = 'openai' | 'claude' | 'gemini';
+
+export interface LLMResponse {
   content: string;
   model: string;
+  provider: Provider;
+  inputTokens: number;
+  outputTokens: number;
 }
 
-type Provider = 'openai' | 'claude' | 'gemini';
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 2.5);
+}
 
 async function callOpenAI(apiKey: string, prompt: string, model = 'gpt-4o-mini'): Promise<LLMResponse> {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -31,6 +38,9 @@ async function callOpenAI(apiKey: string, prompt: string, model = 'gpt-4o-mini')
   return {
     content: data.choices[0].message.content,
     model,
+    provider: 'openai',
+    inputTokens: data.usage?.prompt_tokens ?? estimateTokens(prompt),
+    outputTokens: data.usage?.completion_tokens ?? estimateTokens(data.choices[0].message.content),
   };
 }
 
@@ -59,6 +69,9 @@ async function callClaude(apiKey: string, prompt: string, model = 'claude-sonnet
   return {
     content: data.content[0].text,
     model,
+    provider: 'claude',
+    inputTokens: data.usage?.input_tokens ?? estimateTokens(prompt),
+    outputTokens: data.usage?.output_tokens ?? estimateTokens(data.content[0].text),
   };
 }
 
@@ -81,9 +94,13 @@ async function callGemini(apiKey: string, prompt: string, model = 'gemini-2.0-fl
   }
 
   const data = await res.json();
+  const content = data.candidates[0].content.parts[0].text;
   return {
-    content: data.candidates[0].content.parts[0].text,
+    content,
     model,
+    provider: 'gemini',
+    inputTokens: data.usageMetadata?.promptTokenCount ?? estimateTokens(prompt),
+    outputTokens: data.usageMetadata?.candidatesTokenCount ?? estimateTokens(content),
   };
 }
 

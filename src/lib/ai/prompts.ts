@@ -189,6 +189,139 @@ export function buildJuryVotePrompt(
 {"score": 8, "comment": "짧은 평가 코멘트"}`;
 }
 
+// === Kickoff Meeting Prompt ===
+
+export function buildKickoffMeetingPrompt(
+  productInfo: ProductInfo,
+  campaignType: CampaignType
+): string {
+  const config = CAMPAIGN_TYPE_CONFIG[campaignType];
+
+  return `당신은 AI 마케팅 팀의 모든 멤버 8명입니다. 새 캠페인 킥오프 미팅을 진행합니다.
+
+[캠페인 정보]
+- 제품: ${productInfo.name}
+- 카테고리: ${CATEGORY_LABELS[productInfo.category]}
+- 설명: ${productInfo.description || '없음'}
+- 타겟: ${productInfo.targetAudience || '미정'}
+- 핵심 차별점: ${productInfo.uniqueValue || '없음'}
+- 캠페인 유형: ${config.label} (${config.days}일)
+
+[팀원]
+- 하나 (본부장): 전체 전략 총괄
+- 민서 (마케팅 전략가): 30일 플랜, 니치밴딩
+- 지우 (SEO 카피라이터): 키워드, 카피
+- 태양 (퍼포먼스 마케터): Meta/Google 광고, CPA 최적화
+- 유나 (크리에이티브 디렉터): 비주얼 컨셉
+- 도하 (모션 디자이너): 숏폼 영상
+- 시원 (개발자): 파이프라인, 기술
+- 은지 (데이터 엔지니어): 분석, 투표 집계
+
+[요구사항]
+이 제품의 킥오프 미팅 대화를 작성하세요. 각 팀원이 본인 전문 분야 관점에서 의견을 1번씩 말하고, 본부장 하나가 전략을 결정합니다.
+
+반드시 JSON 배열로만 응답:
+[
+  {"agent": "hana", "name": "하나", "message": "본부장 첫 발언 (캠페인 소개와 전략 방향)"},
+  {"agent": "minseo", "name": "민서", "message": "전략가 의견 (니치밴딩 관점)"},
+  {"agent": "jiwoo", "name": "지우", "message": "SEO 의견 (키워드/카피 관점)"},
+  {"agent": "yuna", "name": "유나", "message": "비주얼 의견"},
+  {"agent": "doha", "name": "도하", "message": "숏폼 영상 의견"},
+  {"agent": "taeyang", "name": "태양", "message": "광고 운영 의견"},
+  {"agent": "eunji", "name": "은지", "message": "데이터/분석 관점"},
+  {"agent": "siwon", "name": "시원", "message": "기술 지원 의견"},
+  {"agent": "hana", "name": "하나", "message": "본부장 최종 결정 (전략 종합)"}
+]`;
+}
+
+// === Week Review Prompts ===
+
+export function buildWeeklyAnalysisPrompt(
+  productName: string,
+  currentWeek: number,
+  metrics: Record<string, unknown>,
+  previousMetrics: Record<string, unknown> | null
+): string {
+  return `당신은 데이터 엔지니어 "은지"입니다. 마케팅 캠페인 Week ${currentWeek} 성과를 분석하세요.
+
+[제품] ${productName}
+
+[이번 주 지표]
+${JSON.stringify(metrics, null, 2)}
+
+${previousMetrics ? `[지난 주 지표]\n${JSON.stringify(previousMetrics, null, 2)}\n` : ''}
+
+다음 기준으로 분석:
+1. 핵심 인사이트 3가지 (긍정/부정 모두 포함)
+2. 주요 변화점 (지난 주 대비)
+3. 위험 신호 (CAC 급등, CTR 하락 등)
+4. 강점 신호 (오가닉 성장, 전환율 개선 등)
+
+반드시 JSON으로만 응답:
+{
+  "summary": "한 줄 요약",
+  "insights": ["인사이트1", "인사이트2", "인사이트3"],
+  "risks": ["위험 신호1", "위험 신호2"],
+  "strengths": ["강점1", "강점2"],
+  "kpiHighlight": "가장 주목할 KPI 1개와 그 의미"
+}`;
+}
+
+export function buildAgentOpinionPrompt(
+  agentRole: string,
+  agentName: string,
+  productName: string,
+  currentWeek: number,
+  analysis: { summary: string; insights: string[]; risks: string[]; strengths: string[] }
+): string {
+  return `당신은 마케팅 팀의 "${agentName}" (${agentRole})입니다.
+은지의 Week ${currentWeek} 데이터 분석을 보고, 본인 전문 분야 관점에서 다음 주 전략 의견을 제시하세요.
+
+[제품] ${productName}
+
+[은지의 분석]
+요약: ${analysis.summary}
+인사이트: ${analysis.insights.join(' / ')}
+위험: ${analysis.risks.join(' / ')}
+강점: ${analysis.strengths.join(' / ')}
+
+반드시 JSON으로만 응답:
+{
+  "opinion": "본인 분야 관점 의견 (2~3문장)",
+  "recommendation": "구체적 액션 제안 1개"
+}`;
+}
+
+export function buildHeadDecisionPrompt(
+  productName: string,
+  currentWeek: number,
+  analysis: { summary: string; insights: string[]; risks: string[]; strengths: string[] },
+  opinions: Array<{ name: string; opinion: string; recommendation: string }>
+): string {
+  return `당신은 마케팅 본부장 "하나"입니다.
+Week ${currentWeek} 리뷰 미팅 결과를 종합하고, 다음 주(Week ${currentWeek + 1}) 전략을 결정하세요.
+
+[제품] ${productName}
+
+[데이터 분석]
+${analysis.summary}
+인사이트: ${analysis.insights.join(' / ')}
+
+[팀원 의견]
+${opinions.map((o) => `- ${o.name}: ${o.opinion} → ${o.recommendation}`).join('\n')}
+
+반드시 JSON으로만 응답:
+{
+  "decision": "본부장 종합 결정 (3~4문장)",
+  "actionItems": [
+    {"agent": "지우", "action": "구체적 액션 1"},
+    {"agent": "유나", "action": "구체적 액션 2"},
+    {"agent": "태양", "action": "구체적 액션 3"}
+  ],
+  "nextWeekFocus": "다음 주 핵심 포커스 한 줄"
+}`;
+}
+
 export function buildChannelSetupPrompt(
   platform: SocialPlatform,
   productInfo: { name: string; category: string; targetAudience: string; uniqueValue: string; description: string }

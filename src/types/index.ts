@@ -82,8 +82,11 @@ export interface FigmaTemplate {
   frames: FigmaFrame[];
 }
 
+export type CampaignMode = 'demo' | 'production';
+
 export interface Campaign {
   id: string;
+  mode: CampaignMode;
   productInfo: ProductInfo;
   options?: CampaignOptions;
   status: 'intake' | 'planning' | 'creating' | 'voting' | 'testing' | 'deploying' | 'active' | 'paused' | 'completed';

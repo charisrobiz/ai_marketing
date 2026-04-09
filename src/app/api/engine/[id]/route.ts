@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/db/supabase';
-import { buildPlanPrompt, buildCreativePrompt, buildJuryVotePrompt } from '@/lib/ai/prompts';
+import { buildPlanPrompt, buildCreativePrompt, buildJuryVotePrompt, buildKickoffMeetingPrompt } from '@/lib/ai/prompts';
 import { callLLM, parseJSONResponse } from '@/lib/ai/llmClient';
 import { JURY_PERSONAS } from '@/data/juryPersonas';
 import { generateImage } from '@/lib/media/imageGenerator';
 import { generateVideo } from '@/lib/media/videoGenerator';
 import { fetchFigmaTemplate } from '@/lib/media/figmaClient';
 import { composeBanner } from '@/lib/media/bannerComposer';
+import { logLLMUsage, logMediaUsage } from '@/lib/usage/tracker';
 import type { ProductInfo, CampaignOptions, CampaignMedia, MediaContent } from '@/types';
 import { CAMPAIGN_TYPE_CONFIG } from '@/types';
 
@@ -55,9 +56,20 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   const { data: campaign } = await supabase.from('campaigns').select('*').eq('id', campaignId).single();
   if (!campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
 
+  const mode = (campaign.mode || 'production') as 'demo' | 'production';
   const productInfo: ProductInfo = campaign.product_info as unknown as ProductInfo;
   const options: CampaignOptions = (campaign.options as unknown as CampaignOptions) || { generateImage: false, generateVideo: false };
   const settings = await getSettings();
+
+  // Production 모드는 LLM API 키 필수
+  if (mode === 'production') {
+    const hasLLMKey = settings.openaiApiKey || settings.claudeApiKey || settings.geminiApiKey;
+    if (!hasLLMKey) {
+      return NextResponse.json({
+        error: 'AI LLM API 키가 등록되지 않았습니다. 관리자 설정에서 OpenAI/Claude/Gemini 중 최소 1개를 등록해주세요.',
+      }, { status: 400 });
+    }
+  }
 
   // 소셜 채널 조회
   const { data: channelRows } = await supabase.from('social_channels').select('*').in('status', ['registered', 'ai_recommended']);
@@ -74,24 +86,36 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   const videoSources = campaignMedia.filter((m) => m.parsedContent?.usage_intent === 'video_source');
   const imageRefs = campaignMedia.filter((m) => ['ad_image_reference', 'background_source', 'app_screenshot'].includes(m.parsedContent?.usage_intent || ''));
 
-  // === 하나(본부장) 니치밴딩 브리핑 ===
+  // === 킥오프 미팅 ===
   const typeConfig = CAMPAIGN_TYPE_CONFIG[options.campaignType || 'standard'];
-  await addEvent(campaignId, 'hana', '하나', 'chat', `팀 여러분, "${productInfo.name}" 캠페인 킥오프 미팅을 시작합니다!`);
-  await addEvent(campaignId, 'hana', '하나', 'chat', `${typeConfig.emoji} 이번 캠페인은 "${typeConfig.label}" (${typeConfig.days}일)입니다. ${typeConfig.description}`);
-  await addEvent(campaignId, 'hana', '하나', 'chat', `니치밴딩(Niche Banding) 전략을 기본으로, 캠페인 기간에 맞게 전략을 최적화합니다.`);
-  await addEvent(campaignId, 'hana', '하나', 'chat', `니치밴딩 5원칙: 1)극도의 세분화 2)깊이>넓이 3)커뮤니티 중심 성장 4)권위 구축 5)볼링핀 확장 전략`);
-  await addEvent(campaignId, 'hana', '하나', 'chat', `"${productInfo.targetAudience || '타겟 미정'}"을 더 깊이 세분화해서, 핵심 니치를 찾아야 합니다.`);
-  await addEvent(campaignId, 'hana', '하나', 'chat', `차별점은 "${productInfo.uniqueValue || productInfo.description}"입니다. 소수에게 필수적인 포지셔닝으로 가겠습니다.`);
 
-  await addEvent(campaignId, 'minseo', '민서', 'chat', `네 본부장님! 니치밴딩 1단계(니치 발견)부터 시작하겠습니다.`);
-  await addEvent(campaignId, 'jiwoo', '지우', 'chat', `니치 롱테일 키워드 리서치 들어갑니다!`);
-  await addEvent(campaignId, 'yuna', '유나', 'chat', `니치 서브컬처 코드 분석 시작합니다!`);
-  await addEvent(campaignId, 'doha', '도하', 'chat', `니치 감성 숏폼 콘텐츠 기획할게요.`);
-  await addEvent(campaignId, 'taeyang', '태양', 'chat', `니치 타겟 리타겟팅 세팅 준비합니다!`);
-  await addEvent(campaignId, 'siwon', '시원', 'chat', `파이프라인 준비 완료.`);
-  await addEvent(campaignId, 'eunji', '은지', 'chat', `니치 세그먼트별 반응 분석 대시보드 세팅 완료했습니다!`);
+  if (mode === 'production') {
+    // Production: 진짜 AI로 킥오프 대화 생성
+    try {
+      const kickoffPrompt = buildKickoffMeetingPrompt(productInfo, options.campaignType || 'standard');
+      const kickoffRes = await callLLM(settings, kickoffPrompt);
+      await logLLMUsage({ campaignId, agentId: 'hana', agentName: '하나', phase: 'kickoff', taskDescription: '킥오프 미팅 대화', mode }, kickoffRes);
+      const kickoffMessages = parseJSONResponse<Array<{ agent: string; name: string; message: string }>>(kickoffRes.content);
+      for (const msg of kickoffMessages) {
+        await addEvent(campaignId, msg.agent, msg.name, 'chat', msg.message);
+      }
+    } catch {
+      // 실패 시 최소한의 메시지만
+      await addEvent(campaignId, 'hana', '하나', 'chat', `팀 여러분, "${productInfo.name}" 캠페인 킥오프 미팅을 시작합니다.`);
+      await addEvent(campaignId, 'hana', '하나', 'chat', `${typeConfig.emoji} 캠페인 유형: ${typeConfig.label} (${typeConfig.days}일)`);
+    }
+  } else {
+    // Demo: 하드코딩 시뮬레이션
+    await addEvent(campaignId, 'hana', '하나', 'chat', `[데모] 팀 여러분, "${productInfo.name}" 킥오프 미팅을 시작합니다!`);
+    await addEvent(campaignId, 'hana', '하나', 'chat', `${typeConfig.emoji} ${typeConfig.label} (${typeConfig.days}일) - ${typeConfig.description}`);
+    await addEvent(campaignId, 'minseo', '민서', 'chat', `[데모] 네 본부장님! 니치밴딩 전략으로 시작하겠습니다.`);
+    await addEvent(campaignId, 'jiwoo', '지우', 'chat', `[데모] SEO 키워드 리서치 들어갑니다.`);
+    await addEvent(campaignId, 'yuna', '유나', 'chat', `[데모] 비주얼 컨셉 준비할게요.`);
+    await addEvent(campaignId, 'taeyang', '태양', 'chat', `[데모] 광고 운영 준비합니다.`);
+    await addEvent(campaignId, 'eunji', '은지', 'chat', `[데모] 분석 대시보드 세팅 완료.`);
+  }
 
-  await addEvent(campaignId, 'hana', '하나', 'system', `니치밴딩 전략 기반 업무를 할당합니다.`);
+  await addEvent(campaignId, 'hana', '하나', 'system', `업무를 할당합니다.`);
 
   const taskPlan = await addTask(campaignId, 'minseo', '민서', '니치밴딩 30일 플랜 수립', '니치 발견→진입→장악→확장 4단계 기반', 'in_progress');
   const taskSeo = await addTask(campaignId, 'jiwoo', '지우', '니치 롱테일 키워드 & SEO 카피', '니치 롱테일 키워드 리서치, 커뮤니티 언어 기반 카피', 'pending');
@@ -112,12 +136,22 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
       : '';
     const prompt = buildPlanPrompt(productInfo, campaignMedia, options.campaignType || 'standard') + channelContext;
     const response = await callLLM(settings, prompt);
+    await logLLMUsage({ campaignId, agentId: 'minseo', agentName: '민서', phase: 'plan', taskDescription: '30일 마케팅 플랜 생성', mode }, response);
     plans = parseJSONResponse<Array<{ day: number; week: number; title: string; description: string; channels: string[]; target: string; goal: string }>>(response.content);
     await addEvent(campaignId, 'minseo', '민서', 'plan', `니치밴딩 기반 30일 플랜 완료! ${plans.length}일치 (${response.model})`);
     await addEvent(campaignId, 'hana', '하나', 'chat', `민서님 니치밴딩 플랜 확인했습니다. 세분화 타겟팅 훌륭해요!`);
   } catch (err) {
-    await addEvent(campaignId, 'minseo', '민서', 'system', `API 오류로 데모 플랜을 사용합니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
-    plans = generateDemoPlan(productInfo.name);
+    const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
+    if (mode === 'demo') {
+      // demo 모드만 fallback 허용
+      await addEvent(campaignId, 'minseo', '민서', 'system', `[데모] 데모 플랜을 사용합니다.`);
+      plans = generateDemoPlan(productInfo.name);
+    } else {
+      // production 모드는 에러로 중단
+      await addEvent(campaignId, 'minseo', '민서', 'system', `❌ 플랜 생성 실패: ${errMsg}. 관리자 설정에서 API 키를 확인해주세요.`);
+      await updateCampaignStatus(campaignId, 'paused');
+      return NextResponse.json({ error: `LLM 호출 실패: ${errMsg}` }, { status: 500 });
+    }
   }
 
   // Save plans
@@ -153,9 +187,17 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     try {
       const prompt = buildCreativePrompt(productInfo, plan.day, plan.title, platform, campaignMedia);
       const response = await callLLM(settings, prompt);
+      await logLLMUsage({ campaignId, agentId: 'jiwoo', agentName: '지우', phase: 'creative', taskDescription: `Day ${plan.day} ${platform} 카피 생성`, mode }, response);
       creatives = parseJSONResponse<Array<{ angle: string; hookingText: string; copyText: string; imagePrompt?: string }>>(response.content);
-    } catch {
-      creatives = generateDemoCreatives();
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : '알 수 없는 오류';
+      if (mode === 'demo') {
+        creatives = generateDemoCreatives();
+      } else {
+        await addEvent(campaignId, 'jiwoo', '지우', 'system', `❌ 소재 생성 실패: ${errMsg}`);
+        await updateCampaignStatus(campaignId, 'paused');
+        return NextResponse.json({ error: `소재 생성 실패: ${errMsg}` }, { status: 500 });
+      }
     }
 
     for (const c of creatives) {
@@ -202,6 +244,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
         const { data: publicUrl } = supabase.storage.from('campaign-media').getPublicUrl(fileName);
         await supabase.from('creatives').update({ image_url: publicUrl.publicUrl }).eq('id', row.id);
         row.image_url = publicUrl.publicUrl;
+        await logMediaUsage({ campaignId, agentId: 'yuna', agentName: '유나', phase: 'image', taskDescription: 'AI 이미지 생성', mode }, 'gemini-image', 1);
       }
     }
 
@@ -230,6 +273,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
         if (videoUrl) {
           await supabase.from('creatives').update({ video_url: videoUrl }).eq('id', row.id);
           videoCount++;
+          await logMediaUsage({ campaignId, agentId: 'doha', agentName: '도하', phase: 'video', taskDescription: 'AI 동영상 생성', mode }, 'runway-video', 1);
         }
       }
     }
@@ -271,6 +315,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
               await supabase.from('creatives').update({ banner_url: publicUrl.publicUrl }).eq('id', row.id);
             }
             bannerCount++;
+            await logMediaUsage({ campaignId, agentId: 'yuna', agentName: '유나', phase: 'banner', taskDescription: `Figma 배너 합성 (${frame.name})`, mode }, 'gemini-banner', 1);
           }
         }
       }
@@ -302,12 +347,14 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
           creative.hooking_text, creative.copy_text, creative.angle, productInfo.name
         );
         const response = await callLLM(settings, prompt);
+        await logLLMUsage({ campaignId, agentId: 'eunji', agentName: '은지', phase: 'vote', taskDescription: '심사위원 투표', mode }, response);
         const result = parseJSONResponse<{ score: number; comment: string }>(response.content);
         score = Math.min(10, Math.max(1, result.score));
         comment = result.comment;
       } catch {
+        // 개별 투표 실패 시 평균 기반 추정 (전체 캠페인 중단 대신)
         score = Math.floor(Math.random() * 4) + 6;
-        comment = '자동 평가';
+        comment = mode === 'production' ? '⚠️ AI 호출 실패 (추정값)' : '자동 평가';
       }
       voteRows.push({ campaign_id: campaignId, creative_id: creative.id, jury_id: juror.id, score, comment });
     }

@@ -79,6 +79,15 @@ export default function CampaignsPage() {
                 <div>
                   <div className="flex items-center gap-3">
                     <h3 className="font-semibold text-lg">{campaign.productInfo.name}</h3>
+                    {campaign.mode === 'demo' ? (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-500/20 text-gray-300 border border-gray-500/30">
+                        🎬 데모
+                      </span>
+                    ) : (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                        🚀 실제
+                      </span>
+                    )}
                     <span className={`text-xs px-2 py-0.5 rounded-full ${status.color} ${status.bg}`}>
                       {status.label}
                     </span>

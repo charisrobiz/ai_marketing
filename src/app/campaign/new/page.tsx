@@ -113,6 +113,7 @@ export default function NewCampaignPage() {
 
     const campaign = {
       id: campaignId,
+      mode: 'production' as const,
       productInfo: {
         category,
         name,
@@ -131,7 +132,7 @@ export default function NewCampaignPage() {
     fetch('/api/campaigns', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: campaign.id, productInfo: campaign.productInfo, options: campaign.options, status: campaign.status }),
+      body: JSON.stringify({ id: campaign.id, mode: 'production', productInfo: campaign.productInfo, options: campaign.options, status: campaign.status }),
     }).catch(() => {});
 
     router.push(`/campaign/${campaign.id}`);
