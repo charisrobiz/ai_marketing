@@ -43,6 +43,168 @@ export interface ProductInfo {
   additionalAnswers: Record<string, string>;
 }
 
+// === 광고 자산 타입 ===
+export type AssetType = 'card_news' | 'shorts' | 'feed_image' | 'banner' | 'video_ad' | 'blog_post' | 'story';
+
+export interface AssetTypeConfig {
+  label: string;
+  emoji: string;
+  description: string;
+  aspectRatio: string;
+  dimensions: string;
+  requiresImage: boolean;
+  requiresVideo: boolean;
+  slideCount?: number;
+  platforms: string[];
+}
+
+export const ASSET_TYPE_CONFIG: Record<AssetType, AssetTypeConfig> = {
+  card_news: {
+    label: '카드뉴스',
+    emoji: '📑',
+    description: '10장 내외의 카드뉴스 (인스타 캐러셀, 슬라이드)',
+    aspectRatio: '1:1',
+    dimensions: '1080x1080',
+    requiresImage: true,
+    requiresVideo: false,
+    slideCount: 10,
+    platforms: ['instagram', 'facebook', 'threads'],
+  },
+  shorts: {
+    label: '숏츠/릴스',
+    emoji: '📱',
+    description: '15~60초 세로형 숏폼 영상 (릴스, 틱톡, 쇼츠)',
+    aspectRatio: '9:16',
+    dimensions: '1080x1920',
+    requiresImage: true,
+    requiresVideo: true,
+    platforms: ['instagram', 'tiktok', 'youtube'],
+  },
+  feed_image: {
+    label: '피드 이미지',
+    emoji: '🖼️',
+    description: '단일 이미지 광고 (인스타 피드, 페이스북)',
+    aspectRatio: '1:1',
+    dimensions: '1080x1080',
+    requiresImage: true,
+    requiresVideo: false,
+    platforms: ['instagram', 'facebook', 'x'],
+  },
+  banner: {
+    label: '배너 광고',
+    emoji: '📢',
+    description: '디스플레이 광고 배너 (웹, 앱 광고)',
+    aspectRatio: '16:9',
+    dimensions: '1200x628',
+    requiresImage: true,
+    requiresVideo: false,
+    platforms: ['blog', 'facebook'],
+  },
+  video_ad: {
+    label: '영상 광고',
+    emoji: '🎬',
+    description: '가로형 영상 광고 (유튜브, 페이스북)',
+    aspectRatio: '16:9',
+    dimensions: '1920x1080',
+    requiresImage: true,
+    requiresVideo: true,
+    platforms: ['youtube', 'facebook'],
+  },
+  blog_post: {
+    label: '블로그 포스트',
+    emoji: '📝',
+    description: 'SEO 블로그 포스트 (2000자+ 롱폼)',
+    aspectRatio: 'text',
+    dimensions: 'N/A',
+    requiresImage: true,
+    requiresVideo: false,
+    platforms: ['blog'],
+  },
+  story: {
+    label: '스토리',
+    emoji: '📖',
+    description: '24시간 스토리 (인스타, 페이스북)',
+    aspectRatio: '9:16',
+    dimensions: '1080x1920',
+    requiresImage: true,
+    requiresVideo: false,
+    platforms: ['instagram', 'facebook'],
+  },
+};
+
+// === 디자인 스타일 라이브러리 ===
+export type DesignStyle = 'toss' | 'baemin' | 'karrot' | 'apple' | 'muji' | 'nike' | 'lifestyle' | 'cinematic' | 'minimal' | 'custom';
+
+export interface DesignStyleConfig {
+  label: string;
+  description: string;
+  promptSnippet: string;
+  referenceKeywords: string[];
+}
+
+export const DESIGN_STYLE_CONFIG: Record<DesignStyle, DesignStyleConfig> = {
+  toss: {
+    label: '토스 스타일',
+    description: '미니멀, 밝은 톤, 한국 일상, 노란색 포인트',
+    promptSnippet: 'Korean fintech Toss brand aesthetic, minimal clean design, bright natural daylight, subtle yellow accent color, modern Korean apartment or cafe interior, authentic Korean lifestyle, friendly warm atmosphere, soft pastel background, magazine photography style',
+    referenceKeywords: ['minimal', 'bright', 'yellow accent', 'korean lifestyle', 'friendly'],
+  },
+  baemin: {
+    label: '배민 스타일',
+    description: '따뜻한 색감, 음식 클로즈업, 친근한 B급 감성',
+    promptSnippet: 'Korean food delivery Baedal Minjok brand style, warm mint and coral color palette, appetizing food close-up photography, casual friendly atmosphere, handwritten Korean typography feel, playful B-class sensibility, cozy restaurant interior, natural warm lighting',
+    referenceKeywords: ['warm', 'food', 'mint', 'playful', 'friendly'],
+  },
+  karrot: {
+    label: '당근 스타일',
+    description: '동네 감성, 자연광, 평범한 한국 동네 일상',
+    promptSnippet: 'Korean neighborhood community Karrot Market brand style, authentic local Korean neighborhood atmosphere, natural sunlight, regular Korean people in everyday situations, slightly worn but warm aesthetic, Korean residential streets and small shops, orange accent color, genuine documentary photography feel',
+    referenceKeywords: ['neighborhood', 'authentic', 'natural light', 'everyday', 'orange'],
+  },
+  apple: {
+    label: 'Apple 스타일',
+    description: '깨끗한 흰 배경, 제품 중심, 프리미엄 미니멀',
+    promptSnippet: 'Apple premium product photography, pure clean white background, minimal composition, product as hero, soft diffused studio lighting, ultra-sharp focus, premium aesthetic, sophisticated color grading, editorial quality, ultra high resolution',
+    referenceKeywords: ['clean', 'white', 'premium', 'minimal', 'product'],
+  },
+  muji: {
+    label: 'Muji 스타일',
+    description: '무채색, 자연 소재, 미니멀 일본 감성',
+    promptSnippet: 'Muji Japanese minimalism, neutral beige and cream color palette, natural materials like wood and linen, soft diffused natural light, zen minimal aesthetic, uncluttered composition, calm and peaceful mood, documentary lifestyle photography',
+    referenceKeywords: ['neutral', 'beige', 'minimal', 'zen', 'natural'],
+  },
+  nike: {
+    label: 'Nike 스타일',
+    description: '역동적, 고대비, 스포츠 모션',
+    promptSnippet: 'Nike dynamic sports photography, high contrast dramatic lighting, motion blur effect, athletic energy, bold composition, strong shadows and highlights, urban street environment, powerful and inspiring atmosphere, hyperrealistic',
+    referenceKeywords: ['dynamic', 'sports', 'high contrast', 'motion', 'urban'],
+  },
+  lifestyle: {
+    label: '라이프스타일',
+    description: '자연스러운 일상, 따뜻한 색감',
+    promptSnippet: 'Lifestyle photography, candid authentic moments, warm golden hour lighting, natural composition, real people in real situations, soft film grain, Kodak Portra 400 aesthetic, editorial magazine quality',
+    referenceKeywords: ['lifestyle', 'candid', 'golden hour', 'film', 'authentic'],
+  },
+  cinematic: {
+    label: '시네마틱',
+    description: '영화 같은 컬러그레이딩, 드라마틱',
+    promptSnippet: 'Cinematic photography, movie-like color grading with teal and orange tones, dramatic lighting, shallow depth of field, anamorphic lens feel, storytelling composition, atmospheric mood, shot on ARRI Alexa quality',
+    referenceKeywords: ['cinematic', 'dramatic', 'film', 'teal orange', 'mood'],
+  },
+  minimal: {
+    label: '미니멀',
+    description: '단순한 배경, 깨끗한 구성',
+    promptSnippet: 'Minimalist composition, lots of negative space, single focal point, clean background, subtle color palette, geometric harmony, gallery aesthetic, ultra sharp focus',
+    referenceKeywords: ['minimal', 'clean', 'negative space', 'geometric'],
+  },
+  custom: {
+    label: '커스텀',
+    description: 'CEO가 업로드한 레퍼런스 기반',
+    promptSnippet: '',
+    referenceKeywords: [],
+  },
+};
+
 export type CampaignType = 'flash' | 'short' | 'standard' | 'long';
 
 export const CAMPAIGN_TYPE_CONFIG: Record<CampaignType, { label: string; description: string; days: number; weeks: number; emoji: string }> = {
@@ -54,6 +216,8 @@ export const CAMPAIGN_TYPE_CONFIG: Record<CampaignType, { label: string; descrip
 
 export interface CampaignOptions {
   campaignType: CampaignType;
+  assetTypes: AssetType[];       // 이번 캠페인에서 생성할 광고 자산 유형 (복수 선택)
+  designStyle: DesignStyle;      // 디자인 스타일 프리셋
   generateImage: boolean;
   generateVideo: boolean;
   composeBanner: boolean;
@@ -345,6 +509,7 @@ export interface AdminSettings {
   figmaApiKey: string;
   // Media Generation
   runwayApiKey: string;
+  falApiKey: string;              // fal.ai (Flux 1.1 Pro Ultra, Flux Kontext)
   // Telegram Notifications
   telegramBotToken: string;
   telegramChatId: string;

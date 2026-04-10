@@ -3,12 +3,15 @@ import { supabase } from '@/lib/db/supabase';
 import { buildPlanPrompt, buildCreativePrompt, buildJuryVotePrompt, buildKickoffMeetingPrompt } from '@/lib/ai/prompts';
 import { callLLM, parseJSONResponse } from '@/lib/ai/llmClient';
 import { JURY_PERSONAS } from '@/data/juryPersonas';
-import { generateImage } from '@/lib/media/imageGenerator';
-import { generateVideo } from '@/lib/media/videoGenerator';
+import { generateImageAdvanced } from '@/lib/media/imageGenerator';
+import { generateVideoAdvanced } from '@/lib/media/videoGenerator';
 import { fetchFigmaTemplate } from '@/lib/media/figmaClient';
 import { composeBanner } from '@/lib/media/bannerComposer';
+import { buildPhotographicPromptRequest, buildCardNewsSlidesPrompt, buildShortsScriptPrompt, buildQuickImagePrompt } from '@/lib/ai/photographicPrompts';
 import { logLLMUsage, logMediaUsage } from '@/lib/usage/tracker';
 import { notifyEngineCompleted } from '@/lib/telegram/notifications';
+import { ASSET_TYPE_CONFIG } from '@/types';
+import type { AssetType, DesignStyle } from '@/types';
 import type { ProductInfo, CampaignOptions, CampaignMedia, MediaContent } from '@/types';
 import { CAMPAIGN_TYPE_CONFIG } from '@/types';
 
@@ -21,6 +24,7 @@ async function getSettings() {
     claudeApiKey: map['claudeApiKey'] || '',
     geminiApiKey: map['geminiApiKey'] || '',
     runwayApiKey: map['runwayApiKey'] || '',
+    falApiKey: map['falApiKey'] || '',
     figmaApiKey: map['figmaApiKey'] || '',
     modelOverrides: map['modelOverrides'] ? JSON.parse(map['modelOverrides']) : {},
   };
@@ -223,41 +227,152 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   await updateTask(taskVisual, 'completed', `${totalCreatives}개 비주얼 감수`);
   await updateTask(taskMotion, 'in_progress');
 
-  // === Phase 2.5: 이미지/동영상 생성 ===
-  if (options.generateImage && settings.geminiApiKey) {
-    await addEvent(campaignId, 'yuna', '유나', 'creative', `AI 이미지 생성을 시작합니다! Gemini Nano Banana 2로 각 소재별 비주얼을 만들게요.`);
+  // === Phase 2.5: 자산 타입별 이미지 생성 ===
+  const assetTypes: AssetType[] = (options as { assetTypes?: AssetType[] }).assetTypes || ['feed_image'];
+  const designStyle: DesignStyle = (options as { designStyle?: DesignStyle }).designStyle || 'lifestyle';
+
+  // 이미지가 필요한 자산 타입이 하나라도 있고, Gemini/fal 키가 있을 때만 실행
+  const needsImage = assetTypes.some((t) => ASSET_TYPE_CONFIG[t].requiresImage);
+  if (options.generateImage && needsImage && (settings.geminiApiKey || settings.falApiKey)) {
+    await addEvent(campaignId, 'yuna', '유나', 'creative', `📸 AI 이미지 생성 시작! 디자인 스타일: ${designStyle}. 자산 유형: ${assetTypes.filter(t => ASSET_TYPE_CONFIG[t].requiresImage).map(t => ASSET_TYPE_CONFIG[t].label).join(', ')}`);
 
     if (imageRefs.length > 0) {
       await addEvent(campaignId, 'yuna', '유나', 'creative', `CEO가 제공한 참고 이미지 ${imageRefs.length}개의 스타일과 분위기를 반영합니다!`);
     }
 
-    // 참고 이미지 설명을 프롬프트에 추가
     const refContext = imageRefs.map((m) => m.parsedContent?.description).filter(Boolean).join(', ');
 
-    for (const row of allCreativeRows) {
-      let prompt = (row.image_prompt as string) || `Marketing image for ${row.angle} angle, ${productInfo.name}`;
-      if (refContext) prompt += `. Reference style: ${refContext}`;
-      const result = await generateImage(settings.geminiApiKey, prompt);
+    // 어떤 이미지 모델을 쓸지 결정 (fal.ai Flux > Imagen 4 > Gemini)
+    const preferredImageModel: 'flux-1.1-pro-ultra' | 'imagen-4-ultra' | 'gemini-2.5-flash-image' =
+      settings.falApiKey ? 'flux-1.1-pro-ultra' : settings.geminiApiKey ? 'imagen-4-ultra' : 'gemini-2.5-flash-image';
 
-      if (result) {
-        const fileName = `${campaignId}/${row.id}-image.png`;
-        const buffer = Buffer.from(result.imageBase64, 'base64');
-        await supabase.storage.from('campaign-media').upload(fileName, buffer, { contentType: result.mimeType, upsert: true });
-        const { data: publicUrl } = supabase.storage.from('campaign-media').getPublicUrl(fileName);
-        await supabase.from('creatives').update({ image_url: publicUrl.publicUrl }).eq('id', row.id);
-        row.image_url = publicUrl.publicUrl;
-        await logMediaUsage({ campaignId, agentId: 'yuna', agentName: '유나', phase: 'image', taskDescription: 'AI 이미지 생성', mode }, 'gemini-image', 1);
+    await addEvent(campaignId, 'yuna', '유나', 'creative', `사용 모델: ${preferredImageModel} (${preferredImageModel === 'flux-1.1-pro-ultra' ? '최고 품질' : preferredImageModel === 'imagen-4-ultra' ? '고품질' : '기본'})`);
+
+    for (const row of allCreativeRows) {
+      // 각 자산 타입별로 이미지 생성
+      for (const assetType of assetTypes) {
+        if (!ASSET_TYPE_CONFIG[assetType].requiresImage) continue;
+        if (assetType === 'card_news') continue; // 카드뉴스는 별도 처리
+        if (assetType === 'video_ad' || assetType === 'shorts') continue; // 영상은 아래에서 처리
+
+        const assetConfig = ASSET_TYPE_CONFIG[assetType];
+        await addEvent(campaignId, 'yuna', '유나', 'creative', `${assetConfig.emoji} ${assetConfig.label} 생성 중... (${row.angle})`);
+
+        // Step 1: LLM에게 정교한 영문 프롬프트 작성 요청 (메타 프롬프트 레이어)
+        let imagePrompt: string;
+        try {
+          const promptRequest = buildPhotographicPromptRequest({
+            productInfo,
+            angle: row.angle as string,
+            hookingText: row.hooking_text as string,
+            copyText: row.copy_text as string,
+            assetType,
+            designStyle,
+            customReference: refContext || undefined,
+            productImageUrl: imageRefs.find((m) => m.parsedContent?.usage_intent === 'app_screenshot')?.file_url || undefined,
+          });
+          const promptRes = await callLLM(settings, promptRequest, 'analysis', settings.modelOverrides?.['image-prompt']);
+          await logLLMUsage({ campaignId, agentId: 'yuna', agentName: '유나', phase: 'image-prompt', taskDescription: `${assetConfig.label} 프롬프트 생성`, mode }, promptRes);
+          imagePrompt = promptRes.content.trim();
+        } catch {
+          // Fallback
+          imagePrompt = buildQuickImagePrompt(productInfo, designStyle, assetType, row.angle as string);
+        }
+
+        // Step 2: 이미지 생성
+        const aspectRatio = assetConfig.aspectRatio === '9:16' ? '9:16' : assetConfig.aspectRatio === '16:9' ? '16:9' : '1:1';
+        const result = await generateImageAdvanced(
+          { geminiApiKey: settings.geminiApiKey, falApiKey: settings.falApiKey },
+          imagePrompt,
+          { model: preferredImageModel, aspectRatio }
+        );
+
+        if (result) {
+          const fileName = `${campaignId}/${row.id}-${assetType}.png`;
+          let publicUrl: string;
+
+          if (result.imageBase64) {
+            const buffer = Buffer.from(result.imageBase64, 'base64');
+            await supabase.storage.from('campaign-media').upload(fileName, buffer, { contentType: result.mimeType, upsert: true });
+            publicUrl = supabase.storage.from('campaign-media').getPublicUrl(fileName).data.publicUrl;
+          } else if (result.imageUrl) {
+            publicUrl = result.imageUrl;
+          } else {
+            continue;
+          }
+
+          // 첫 번째 생성한 자산을 대표 image_url로 저장
+          if (!row.image_url) {
+            await supabase.from('creatives').update({ image_url: publicUrl }).eq('id', row.id);
+            row.image_url = publicUrl;
+          }
+          await logMediaUsage({ campaignId, agentId: 'yuna', agentName: '유나', phase: 'image', taskDescription: `${assetConfig.label} 이미지`, mode }, 'gemini-image', 1);
+        }
       }
     }
 
-    await addEvent(campaignId, 'yuna', '유나', 'creative', `AI 이미지 ${allCreativeRows.length}개 생성 완료! 각 소재에 비주얼이 적용되었습니다.`);
+    await addEvent(campaignId, 'yuna', '유나', 'creative', `✨ 이미지 생성 완료!`);
   }
 
-  if (options.generateVideo && settings.runwayApiKey) {
-    await addEvent(campaignId, 'doha', '도하', 'creative', `AI 동영상 생성을 시작합니다! Runway Gen-4로 숏폼 영상을 만들게요.`);
+  // === Phase 2.6: 카드뉴스 생성 (선택 시) ===
+  if (options.generateImage && assetTypes.includes('card_news') && (settings.geminiApiKey || settings.falApiKey)) {
+    await addEvent(campaignId, 'yuna', '유나', 'creative', `📑 카드뉴스 10장 슬라이드 생성 시작...`);
+
+    // 상위 1개 소재에 대해서만 카드뉴스 생성 (비용 절감)
+    const topCreative = allCreativeRows[0];
+    if (topCreative) {
+      try {
+        const cardNewsPrompt = buildCardNewsSlidesPrompt(
+          productInfo,
+          topCreative.angle as string,
+          topCreative.hooking_text as string,
+          topCreative.copy_text as string,
+          designStyle
+        );
+        const slidesRes = await callLLM(settings, cardNewsPrompt, 'analysis', settings.modelOverrides?.['card-news']);
+        await logLLMUsage({ campaignId, agentId: 'yuna', agentName: '유나', phase: 'card-news', taskDescription: '카드뉴스 10장 기획', mode }, slidesRes);
+        const slides = parseJSONResponse<Array<{ slide: number; headline: string; subtext: string; imagePrompt: string }>>(slidesRes.content);
+
+        await addEvent(campaignId, 'yuna', '유나', 'creative', `카드뉴스 구성 완료: ${slides.length}장. 각 슬라이드 이미지 생성 중...`);
+
+        const preferredImageModel: 'flux-1.1-pro-ultra' | 'imagen-4-ultra' | 'gemini-2.5-flash-image' =
+          settings.falApiKey ? 'flux-1.1-pro-ultra' : settings.geminiApiKey ? 'imagen-4-ultra' : 'gemini-2.5-flash-image';
+
+        for (const slide of slides) {
+          const result = await generateImageAdvanced(
+            { geminiApiKey: settings.geminiApiKey, falApiKey: settings.falApiKey },
+            slide.imagePrompt,
+            { model: preferredImageModel, aspectRatio: '1:1' }
+          );
+
+          if (result) {
+            const fileName = `${campaignId}/${topCreative.id}-cardnews-${slide.slide}.png`;
+            if (result.imageBase64) {
+              const buffer = Buffer.from(result.imageBase64, 'base64');
+              await supabase.storage.from('campaign-media').upload(fileName, buffer, { contentType: result.mimeType, upsert: true });
+            }
+            await logMediaUsage({ campaignId, agentId: 'yuna', agentName: '유나', phase: 'card-news', taskDescription: `카드뉴스 ${slide.slide}장`, mode }, 'gemini-image', 1);
+          }
+        }
+
+        await addEvent(campaignId, 'yuna', '유나', 'creative', `📑 카드뉴스 ${slides.length}장 생성 완료!`);
+      } catch (err) {
+        await addEvent(campaignId, 'yuna', '유나', 'system', `카드뉴스 생성 실패: ${err instanceof Error ? err.message : '알 수 없음'}`);
+      }
+    }
+  }
+
+  // === Phase 2.7: 자산 타입별 동영상 생성 ===
+  const needsVideo = assetTypes.some((t) => ASSET_TYPE_CONFIG[t].requiresVideo);
+  if (options.generateVideo && needsVideo && (settings.runwayApiKey || settings.geminiApiKey || settings.openaiApiKey)) {
+    // 우선순위: Veo 3 (Gemini) > Sora 2 (OpenAI) > Runway
+    const videoModel = settings.geminiApiKey ? 'veo-3' : settings.openaiApiKey ? 'sora-2' : 'runway-gen4-turbo';
+    const modelLabel = videoModel === 'veo-3' ? 'Google Veo 3 (사운드 포함)' : videoModel === 'sora-2' ? 'OpenAI Sora 2' : 'Runway Gen-4';
+
+    await addEvent(campaignId, 'doha', '도하', 'creative', `🎬 AI 동영상 생성 시작! 모델: ${modelLabel}`);
 
     if (videoSources.length > 0) {
-      await addEvent(campaignId, 'doha', '도하', 'creative', `CEO가 업로드한 동영상/이미지 소스 ${videoSources.length}개를 활용합니다!`);
+      await addEvent(campaignId, 'doha', '도하', 'creative', `CEO가 업로드한 영상/이미지 소스 ${videoSources.length}개를 활용합니다!`);
     }
 
     const videoTargets = allCreativeRows.slice(0, 3);
@@ -265,22 +380,78 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
 
     for (let i = 0; i < videoTargets.length; i++) {
       const row = videoTargets[i];
-      // CEO 업로드 소스가 있으면 우선 사용, 없으면 AI 생성 이미지 사용
-      const sourceMedia = videoSources[i % videoSources.length];
-      const inputUrl = sourceMedia?.file_url || (row.image_url as string | undefined);
-      const prompt = `${productInfo.name} marketing video. ${row.angle} angle. Hook: ${row.hooking_text}. Cinematic, modern, engaging social media ad style.`;
 
-      if (inputUrl) {
-        const videoUrl = await generateVideo(settings.runwayApiKey, inputUrl, prompt);
-        if (videoUrl) {
-          await supabase.from('creatives').update({ video_url: videoUrl }).eq('id', row.id);
+      // 각 동영상 자산 타입별로 생성
+      for (const assetType of assetTypes) {
+        if (!ASSET_TYPE_CONFIG[assetType].requiresVideo) continue;
+        const assetConfig = ASSET_TYPE_CONFIG[assetType];
+        const aspectRatio = assetConfig.aspectRatio === '9:16' ? '9:16' : '16:9';
+
+        await addEvent(campaignId, 'doha', '도하', 'creative', `${assetConfig.emoji} ${assetConfig.label} 생성 중... (${row.angle})`);
+
+        // Step 1: LLM에게 정교한 영상 프롬프트 작성 요청 (숏츠는 장면별 스크립트)
+        let videoPrompt: string;
+        try {
+          if (assetType === 'shorts') {
+            const scriptPrompt = buildShortsScriptPrompt(
+              productInfo,
+              row.angle as string,
+              row.hooking_text as string,
+              row.copy_text as string,
+              designStyle
+            );
+            const scriptRes = await callLLM(settings, scriptPrompt, 'analysis', settings.modelOverrides?.['video-prompt']);
+            await logLLMUsage({ campaignId, agentId: 'doha', agentName: '도하', phase: 'video-prompt', taskDescription: '숏츠 스크립트 + 영상 프롬프트', mode }, scriptRes);
+            const script = parseJSONResponse<{ videoPrompt: string; caption: string; hashtags: string[] }>(scriptRes.content);
+            videoPrompt = script.videoPrompt;
+          } else {
+            const promptRequest = buildPhotographicPromptRequest({
+              productInfo,
+              angle: row.angle as string,
+              hookingText: row.hooking_text as string,
+              copyText: row.copy_text as string,
+              assetType,
+              designStyle,
+            });
+            const promptRes = await callLLM(settings, promptRequest, 'analysis', settings.modelOverrides?.['video-prompt']);
+            await logLLMUsage({ campaignId, agentId: 'doha', agentName: '도하', phase: 'video-prompt', taskDescription: `${assetConfig.label} 영상 프롬프트`, mode }, promptRes);
+            videoPrompt = promptRes.content.trim();
+          }
+        } catch {
+          videoPrompt = `${productInfo.name} marketing video. ${row.angle} angle. Hook: ${row.hooking_text}. Korean style, cinematic, modern, photorealistic.`;
+        }
+
+        // Step 2: 동영상 생성
+        const sourceMedia = videoSources[i % videoSources.length];
+        const inputImageUrl = sourceMedia?.file_url || (row.image_url as string | undefined);
+
+        const videoResult = await generateVideoAdvanced(
+          {
+            runwayApiKey: settings.runwayApiKey,
+            geminiApiKey: settings.geminiApiKey,
+            openaiApiKey: settings.openaiApiKey,
+          },
+          videoPrompt,
+          {
+            model: videoModel,
+            aspectRatio,
+            duration: assetType === 'shorts' ? 15 : 8,
+            imageUrl: inputImageUrl,
+          }
+        );
+
+        if (videoResult) {
+          await supabase.from('creatives').update({ video_url: videoResult.url }).eq('id', row.id);
           videoCount++;
-          await logMediaUsage({ campaignId, agentId: 'doha', agentName: '도하', phase: 'video', taskDescription: 'AI 동영상 생성', mode }, 'runway-video', 1);
+          const mediaType = videoModel === 'runway-gen4-turbo' ? 'runway-video' : 'runway-video';
+          await logMediaUsage({ campaignId, agentId: 'doha', agentName: '도하', phase: 'video', taskDescription: `${assetConfig.label} (${modelLabel})`, mode }, mediaType, 1);
         }
       }
     }
 
-    await addEvent(campaignId, 'doha', '도하', 'creative', `AI 숏폼 동영상 ${videoCount}개 생성 완료!${videoSources.length > 0 ? ' CEO 소스 영상을 활용했습니다.' : ' 이미지 기반 5초 영상입니다.'}`);
+    await addEvent(campaignId, 'doha', '도하', 'creative', `🎬 AI 영상 ${videoCount}개 생성 완료! ${videoSources.length > 0 ? 'CEO 소스 활용.' : ''}`);
+  } else if (!needsVideo) {
+    await addEvent(campaignId, 'doha', '도하', 'system', `선택한 자산 유형에 영상이 포함되지 않아 영상 생성을 건너뜁니다.`);
   } else {
     await addEvent(campaignId, 'doha', '도하', 'creative', `1위 소재 기반 숏폼 영상 컨셉 기획 중...`);
   }

@@ -357,6 +357,25 @@ const SECTIONS: Section[] = [
           urlLabel: 'Runway Developer Portal',
         },
       },
+      {
+        key: 'falApiKey', label: 'fal.ai API Key',
+        description: 'Flux 1.1 Pro Ultra 고품질 이미지 생성 (한국인 실사, 앱 스크린샷 합성)', placeholder: 'fal-...',
+        guide: {
+          title: 'fal.ai API Key 발급 방법',
+          steps: [
+            '1. fal.ai 사이트(fal.ai)에 회원가입 후 로그인.',
+            '2. Dashboard → API Keys 메뉴로 이동.',
+            '3. "Create new key" 클릭.',
+            '4. 키 이름 입력 후 생성.',
+            '5. 생성된 키를 복사하여 여기에 붙여넣기.',
+            '※ Flux 1.1 Pro Ultra: 장당 ~$0.06 (최고 품질)',
+            '※ Flux Kontext: 이미지 편집/합성 (앱 스크린샷 삽입용)',
+            '※ 저렴한 대안으로 Imagen 4 Ultra도 사용 가능 (Gemini 키 필요)',
+          ],
+          url: 'https://fal.ai/dashboard/keys',
+          urlLabel: 'fal.ai API Keys',
+        },
+      },
     ],
   },
   {

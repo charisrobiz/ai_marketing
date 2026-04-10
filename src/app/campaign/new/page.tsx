@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/store/useStore';
-import { CATEGORY_LABELS, CAMPAIGN_TYPE_CONFIG, type ProductCategory, type CampaignType } from '@/types';
+import { CATEGORY_LABELS, CAMPAIGN_TYPE_CONFIG, ASSET_TYPE_CONFIG, DESIGN_STYLE_CONFIG, type ProductCategory, type CampaignType, type AssetType, type DesignStyle } from '@/types';
 import { ArrowRight, ArrowLeft, Sparkles, CheckCircle, Image, Video, AlertTriangle, Layers } from 'lucide-react';
 import MediaUploadStep from '@/components/campaign/MediaUploadStep';
 import type { UploadedMedia } from '@/components/campaign/MediaUploadStep';
@@ -84,6 +84,8 @@ export default function NewCampaignPage() {
   const [composeBanner, setComposeBanner] = useState(false);
   const [figmaFileUrl, setFigmaFileUrl] = useState('');
   const [apiWarning, setApiWarning] = useState('');
+  const [assetTypes, setAssetTypes] = useState<AssetType[]>(['feed_image', 'card_news']);
+  const [designStyle, setDesignStyle] = useState<DesignStyle>('lifestyle');
 
   // 캠페인 ID를 미리 생성 (미디어 업로드에 필요)
   const campaignId = useMemo(() => crypto.randomUUID(), []);
@@ -122,7 +124,7 @@ export default function NewCampaignPage() {
         uniqueValue,
         additionalAnswers: answers,
       },
-      options: { campaignType, generateImage, generateVideo, composeBanner, figmaFileUrl },
+      options: { campaignType, assetTypes, designStyle, generateImage, generateVideo, composeBanner, figmaFileUrl },
       status: 'planning' as const,
       createdAt: new Date().toISOString(),
     };
@@ -316,8 +318,68 @@ export default function NewCampaignPage() {
               )}
             </div>
 
-            {/* 미디어 생성 옵션 */}
+            {/* 광고 자산 유형 선택 */}
             <div className="mt-6 p-4 rounded-lg bg-white/5 border border-white/10">
+              <h3 className="text-sm font-semibold mb-1">광고 자산 유형 (복수 선택)</h3>
+              <p className="text-[11px] text-gray-500 mb-3">이번 캠페인에서 생성할 광고 자산을 선택하세요. 선택한 유형에 맞는 AI 모듈만 실행됩니다.</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {(Object.entries(ASSET_TYPE_CONFIG) as [AssetType, typeof ASSET_TYPE_CONFIG[AssetType]][]).map(([key, config]) => {
+                  const selected = assetTypes.includes(key);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        setAssetTypes((prev) =>
+                          prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+                        );
+                      }}
+                      className={`p-3 rounded-lg border text-left transition-all ${
+                        selected
+                          ? 'border-blue-500 bg-blue-500/10'
+                          : 'border-white/10 bg-white/5 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span>{config.emoji}</span>
+                        <span className="text-xs font-medium">{config.label}</span>
+                      </div>
+                      <p className="text-[10px] text-gray-500 leading-tight">{config.description}</p>
+                      <p className="text-[9px] text-gray-600 mt-1">{config.dimensions}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              {assetTypes.length === 0 && (
+                <p className="text-[10px] text-amber-400 mt-2">⚠ 최소 1개 자산 유형을 선택해야 합니다.</p>
+              )}
+            </div>
+
+            {/* 디자인 스타일 선택 */}
+            <div className="mt-4 p-4 rounded-lg bg-white/5 border border-white/10">
+              <h3 className="text-sm font-semibold mb-1">디자인 스타일</h3>
+              <p className="text-[11px] text-gray-500 mb-3">AI가 이 스타일에 맞춰 photorealistic 광고 소재를 생성합니다.</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {(Object.entries(DESIGN_STYLE_CONFIG) as [DesignStyle, typeof DESIGN_STYLE_CONFIG[DesignStyle]][]).filter(([key]) => key !== 'custom').map(([key, config]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setDesignStyle(key)}
+                    className={`p-3 rounded-lg border text-left transition-all ${
+                      designStyle === key
+                        ? 'border-purple-500 bg-purple-500/10'
+                        : 'border-white/10 bg-white/5 hover:border-white/20'
+                    }`}
+                  >
+                    <p className="text-xs font-medium mb-0.5">{config.label}</p>
+                    <p className="text-[10px] text-gray-500 leading-tight">{config.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 미디어 생성 옵션 */}
+            <div className="mt-4 p-4 rounded-lg bg-white/5 border border-white/10">
               <h3 className="text-sm font-semibold mb-3">AI 미디어 생성 옵션</h3>
               <div className="space-y-3">
                 <label className="flex items-center gap-3 cursor-pointer group">
