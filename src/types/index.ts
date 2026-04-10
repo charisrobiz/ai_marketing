@@ -218,6 +218,7 @@ export interface CampaignOptions {
   campaignType: CampaignType;
   assetTypes: AssetType[];       // 이번 캠페인에서 생성할 광고 자산 유형 (복수 선택)
   designStyle: DesignStyle;      // 디자인 스타일 프리셋
+  benchmarkIds?: string[];       // 참고할 벤치마크 ID 배열
   generateImage: boolean;
   generateVideo: boolean;
   composeBanner: boolean;
@@ -259,6 +260,58 @@ export interface Campaign {
   creatives?: Creative[];
   votes?: VoteResult[];
   abTests?: ABTest[];
+}
+
+// === Benchmark Library Types ===
+export type BenchmarkPlatform = 'youtube' | 'instagram' | 'tiktok' | 'facebook' | 'x' | 'threads' | 'blog' | 'other';
+
+export const BENCHMARK_PLATFORM_CONFIG: Record<BenchmarkPlatform, { label: string; emoji: string; color: string }> = {
+  youtube: { label: 'YouTube', emoji: '▶️', color: 'text-red-400' },
+  instagram: { label: 'Instagram', emoji: '📸', color: 'text-pink-400' },
+  tiktok: { label: 'TikTok', emoji: '🎵', color: 'text-cyan-400' },
+  facebook: { label: 'Facebook', emoji: '👤', color: 'text-blue-400' },
+  x: { label: 'X (Twitter)', emoji: '𝕏', color: 'text-gray-300' },
+  threads: { label: 'Threads', emoji: '🧵', color: 'text-purple-300' },
+  blog: { label: '블로그', emoji: '📝', color: 'text-green-400' },
+  other: { label: '기타', emoji: '🔗', color: 'text-gray-400' },
+};
+
+export interface BenchmarkAIAnalysis {
+  dominantColors?: string[];        // ['#FF6B6B', '#4ECDC4', ...]
+  layout?: string;                  // "중앙 정렬, 텍스트 상단"
+  tone?: string;                    // "따뜻하고 친근한"
+  strengths?: string[];             // ["후킹이 강력함", "색감이 선명함"]
+  weaknesses?: string[];
+  ocrText?: string;                 // 이미지에서 추출한 텍스트
+  designStyle?: string;             // "Toss 스타일", "미니멀" 등
+  targetAudience?: string;          // 추정 타겟
+  emotionalAppeal?: string;         // 감정 호소 방식
+}
+
+export interface BenchmarkItem {
+  id: string;
+  title: string;
+  platform?: BenchmarkPlatform;
+  url?: string;
+  thumbnail_url?: string;
+  captured_images?: string[];
+
+  meta_title?: string;
+  meta_description?: string;
+  meta_stats?: { views?: number; likes?: number; comments?: number };
+  meta_author?: string;
+
+  ai_analysis?: BenchmarkAIAnalysis;
+  ai_insights?: string;
+
+  ceo_notes?: string;
+  category_tags?: string[];
+
+  used_in_campaigns?: string[];
+  use_count?: number;
+
+  created_at?: string;
+  updated_at?: string;
 }
 
 // === Social Channel Types ===

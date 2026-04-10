@@ -12,7 +12,7 @@ import { logLLMUsage, logMediaUsage } from '@/lib/usage/tracker';
 import { notifyEngineCompleted } from '@/lib/telegram/notifications';
 import { ASSET_TYPE_CONFIG } from '@/types';
 import type { AssetType, DesignStyle } from '@/types';
-import type { ProductInfo, CampaignOptions, CampaignMedia, MediaContent } from '@/types';
+import type { ProductInfo, CampaignOptions, CampaignMedia, MediaContent, BenchmarkItem } from '@/types';
 import { CAMPAIGN_TYPE_CONFIG } from '@/types';
 
 async function getSettings() {
@@ -91,6 +91,21 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   // 미디어 용도별 분류
   const videoSources = campaignMedia.filter((m) => m.parsedContent?.usage_intent === 'video_source');
   const imageRefs = campaignMedia.filter((m) => ['ad_image_reference', 'background_source', 'app_screenshot'].includes(m.parsedContent?.usage_intent || ''));
+
+  // 벤치마크 조회 (CEO가 캠페인 생성 시 선택한 것들)
+  const benchmarkIds = (options as { benchmarkIds?: string[] }).benchmarkIds || [];
+  let selectedBenchmarks: BenchmarkItem[] = [];
+  if (benchmarkIds.length > 0) {
+    const { data: bmData } = await supabase.from('benchmark_items').select('*').in('id', benchmarkIds);
+    selectedBenchmarks = (bmData as BenchmarkItem[]) || [];
+    if (selectedBenchmarks.length > 0) {
+      await addEvent(campaignId, 'yuna', '유나', 'creative', `📚 CEO가 선택한 ${selectedBenchmarks.length}개 벤치마크의 색감/톤/구성을 참고합니다!`);
+      // 사용 횟수 증가
+      for (const bm of selectedBenchmarks) {
+        await supabase.from('benchmark_items').update({ use_count: (bm.use_count || 0) + 1 }).eq('id', bm.id);
+      }
+    }
+  }
 
   // === 킥오프 미팅 ===
   const typeConfig = CAMPAIGN_TYPE_CONFIG[options.campaignType || 'standard'];
@@ -270,6 +285,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
             designStyle,
             customReference: refContext || undefined,
             productImageUrl: imageRefs.find((m) => m.parsedContent?.usage_intent === 'app_screenshot')?.file_url || undefined,
+            benchmarks: selectedBenchmarks,
           });
           const promptRes = await callLLM(settings, promptRequest, 'analysis', settings.modelOverrides?.['image-prompt']);
           await logLLMUsage({ campaignId, agentId: 'yuna', agentName: '유나', phase: 'image-prompt', taskDescription: `${assetConfig.label} 프롬프트 생성`, mode }, promptRes);
@@ -412,6 +428,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
               copyText: row.copy_text as string,
               assetType,
               designStyle,
+              benchmarks: selectedBenchmarks,
             });
             const promptRes = await callLLM(settings, promptRequest, 'analysis', settings.modelOverrides?.['video-prompt']);
             await logLLMUsage({ campaignId, agentId: 'doha', agentName: '도하', phase: 'video-prompt', taskDescription: `${assetConfig.label} 영상 프롬프트`, mode }, promptRes);

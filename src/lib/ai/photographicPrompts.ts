@@ -1,8 +1,39 @@
 // 정교한 photorealistic 이미지 프롬프트 빌더
 // AI가 디자이너 수준의 이미지를 생성할 수 있도록 카테고리/스타일/자산 타입별 최적화된 프롬프트 생성
 
-import type { ProductInfo, ProductCategory, DesignStyle, AssetType } from '@/types';
+import type { ProductInfo, ProductCategory, DesignStyle, AssetType, BenchmarkItem } from '@/types';
 import { DESIGN_STYLE_CONFIG, ASSET_TYPE_CONFIG } from '@/types';
+
+// 벤치마크 컨텍스트 빌더
+export function buildBenchmarkContext(benchmarks: BenchmarkItem[]): string {
+  if (!benchmarks || benchmarks.length === 0) return '';
+
+  const blocks = benchmarks.map((bm, i) => {
+    const parts: string[] = [`Reference ${i + 1}: ${bm.title}`];
+    if (bm.platform) parts.push(`Platform: ${bm.platform}`);
+    if (bm.ai_analysis?.dominantColors?.length) parts.push(`Colors: ${bm.ai_analysis.dominantColors.join(', ')}`);
+    if (bm.ai_analysis?.tone) parts.push(`Tone: ${bm.ai_analysis.tone}`);
+    if (bm.ai_analysis?.designStyle) parts.push(`Style: ${bm.ai_analysis.designStyle}`);
+    if (bm.ai_analysis?.layout) parts.push(`Layout: ${bm.ai_analysis.layout}`);
+    if (bm.ai_analysis?.emotionalAppeal) parts.push(`Emotional appeal: ${bm.ai_analysis.emotionalAppeal}`);
+    if (bm.ai_insights) parts.push(`Insight: ${bm.ai_insights}`);
+    if (bm.ceo_notes) parts.push(`CEO notes: ${bm.ceo_notes}`);
+    return parts.join('\n  ');
+  });
+
+  return `\n\n=== BENCHMARK REFERENCES (CEO selected these as inspiration) ===
+The user has selected the following ${benchmarks.length} benchmark(s) for inspiration. Extract their common visual elements (color palette, mood, composition, emotional tone) and apply them to the new image:
+
+${blocks.join('\n\n')}
+
+IMPORTANT: Your generated image should feel inspired by these references in terms of:
+- Color palette (use similar dominant colors)
+- Visual mood and emotional tone
+- Composition style
+- Overall aesthetic
+But the SUBJECT MATTER must be specific to the new product, not copied from the references.
+`;
+}
 
 // 카테고리별 기본 시나리오 (한국 타겟)
 const CATEGORY_SCENE_TEMPLATES: Record<ProductCategory, string[]> = {
@@ -89,12 +120,14 @@ export interface PhotographicPromptInput {
   designStyle: DesignStyle;
   customReference?: string;     // CEO가 업로드한 레퍼런스 이미지 설명
   productImageUrl?: string;     // CEO 업로드 제품 이미지 (앱 화면 등)
+  benchmarks?: BenchmarkItem[]; // 벤치마크 라이브러리 참고
 }
 
 // === 메인: AI 메타 프롬프트 빌더 ===
 // LLM에게 "아래 정보로 최고 품질의 이미지 프롬프트를 만들어줘"라고 요청하기 위한 입력
 export function buildPhotographicPromptRequest(input: PhotographicPromptInput): string {
-  const { productInfo, angle, hookingText, copyText, assetType, designStyle, customReference, productImageUrl } = input;
+  const { productInfo, angle, hookingText, copyText, assetType, designStyle, customReference, productImageUrl, benchmarks } = input;
+  const benchmarkContext = buildBenchmarkContext(benchmarks || []);
 
   const styleConfig = DESIGN_STYLE_CONFIG[designStyle];
   const assetConfig = ASSET_TYPE_CONFIG[assetType];
@@ -130,6 +163,7 @@ Style guidance: ${styleConfig.promptSnippet}
 
 ${customReference ? `=== CEO REFERENCE ===\n${customReference}\n` : ''}
 ${productImageUrl ? `=== PRODUCT IMAGE AVAILABLE ===\nThere is an actual product/app screenshot that should be integrated naturally into the scene (e.g., shown on a phone screen, in someone's hand, on a desk).\n` : ''}
+${benchmarkContext}
 
 === SCENE SUGGESTIONS (pick the most appropriate or invent better) ===
 ${sceneTemplates.map((s, i) => `${i + 1}. ${s}`).join('\n')}

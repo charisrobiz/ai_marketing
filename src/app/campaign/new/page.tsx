@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/store/useStore';
-import { CATEGORY_LABELS, CAMPAIGN_TYPE_CONFIG, ASSET_TYPE_CONFIG, DESIGN_STYLE_CONFIG, type ProductCategory, type CampaignType, type AssetType, type DesignStyle } from '@/types';
-import { ArrowRight, ArrowLeft, Sparkles, CheckCircle, Image, Video, AlertTriangle, Layers } from 'lucide-react';
+import { CATEGORY_LABELS, CAMPAIGN_TYPE_CONFIG, ASSET_TYPE_CONFIG, DESIGN_STYLE_CONFIG, BENCHMARK_PLATFORM_CONFIG, type ProductCategory, type CampaignType, type AssetType, type DesignStyle, type BenchmarkItem } from '@/types';
+import { ArrowRight, ArrowLeft, Sparkles, CheckCircle, Image, Video, AlertTriangle, Layers, Library } from 'lucide-react';
 import MediaUploadStep from '@/components/campaign/MediaUploadStep';
 import type { UploadedMedia } from '@/components/campaign/MediaUploadStep';
 
@@ -86,6 +86,13 @@ export default function NewCampaignPage() {
   const [apiWarning, setApiWarning] = useState('');
   const [assetTypes, setAssetTypes] = useState<AssetType[]>(['feed_image', 'card_news']);
   const [designStyle, setDesignStyle] = useState<DesignStyle>('lifestyle');
+  const [availableBenchmarks, setAvailableBenchmarks] = useState<BenchmarkItem[]>([]);
+  const [selectedBenchmarkIds, setSelectedBenchmarkIds] = useState<string[]>([]);
+
+  // 벤치마크 라이브러리 로드
+  useEffect(() => {
+    fetch('/api/benchmarks').then((r) => r.json()).then((data) => setAvailableBenchmarks(data || []));
+  }, []);
 
   // 캠페인 ID를 미리 생성 (미디어 업로드에 필요)
   const campaignId = useMemo(() => crypto.randomUUID(), []);
@@ -124,7 +131,7 @@ export default function NewCampaignPage() {
         uniqueValue,
         additionalAnswers: answers,
       },
-      options: { campaignType, assetTypes, designStyle, generateImage, generateVideo, composeBanner, figmaFileUrl },
+      options: { campaignType, assetTypes, designStyle, benchmarkIds: selectedBenchmarkIds, generateImage, generateVideo, composeBanner, figmaFileUrl },
       status: 'planning' as const,
       createdAt: new Date().toISOString(),
     };
@@ -354,6 +361,61 @@ export default function NewCampaignPage() {
                 <p className="text-[10px] text-amber-400 mt-2">⚠ 최소 1개 자산 유형을 선택해야 합니다.</p>
               )}
             </div>
+
+            {/* 벤치마크 참고 선택 */}
+            {availableBenchmarks.length > 0 && (
+              <div className="mt-4 p-4 rounded-lg bg-white/5 border border-white/10">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                      <Library size={14} className="text-cyan-400" />
+                      벤치마크 참고 (선택)
+                    </h3>
+                    <p className="text-[11px] text-gray-500">선택한 벤치마크의 색감/톤/구성을 AI가 참고합니다.</p>
+                  </div>
+                  <span className="text-[10px] text-gray-500">{selectedBenchmarkIds.length}개 선택</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+                  {availableBenchmarks.slice(0, 12).map((bm) => {
+                    const selected = selectedBenchmarkIds.includes(bm.id);
+                    const platformConfig = BENCHMARK_PLATFORM_CONFIG[bm.platform || 'other'];
+                    return (
+                      <button
+                        key={bm.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedBenchmarkIds((prev) =>
+                            prev.includes(bm.id) ? prev.filter((id) => id !== bm.id) : [...prev, bm.id]
+                          );
+                        }}
+                        className={`relative rounded-lg overflow-hidden border-2 transition-all ${
+                          selected ? 'border-cyan-500' : 'border-white/10 hover:border-white/30'
+                        }`}
+                      >
+                        <div className="aspect-video bg-white/5 relative">
+                          {bm.thumbnail_url ? (
+                            <img src={bm.thumbnail_url} alt={bm.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-2xl">
+                              {platformConfig.emoji}
+                            </div>
+                          )}
+                          {selected && (
+                            <div className="absolute inset-0 bg-cyan-500/20 flex items-center justify-center">
+                              <CheckCircle size={20} className="text-cyan-300" />
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-[10px] p-1.5 text-left line-clamp-1">{bm.title}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+                {availableBenchmarks.length > 12 && (
+                  <p className="text-[10px] text-gray-500 mt-2">+ {availableBenchmarks.length - 12}개 더 (벤치마크 메뉴에서 관리)</p>
+                )}
+              </div>
+            )}
 
             {/* 디자인 스타일 선택 */}
             <div className="mt-4 p-4 rounded-lg bg-white/5 border border-white/10">

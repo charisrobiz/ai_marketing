@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
+  Library,
 } from 'lucide-react';
 import { useStore, CORE_AGENTS } from '@/store/useStore';
 
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { href: '/dashboard', label: '대시보드', labelEn: 'Dashboard', icon: LayoutDashboard },
   { href: '/campaign/new', label: '새 캠페인', labelEn: 'New Campaign', icon: Plus },
   { href: '/campaigns', label: '캠페인 목록', labelEn: 'Campaigns', icon: FolderOpen },
+  { href: '/benchmarks', label: '벤치마크', labelEn: 'Benchmarks', icon: Library },
   { href: '/agents', label: 'AI 직원', labelEn: 'AI Agents', icon: Users },
   { href: '/admin', label: '관리자', labelEn: 'Admin', icon: Settings },
 ];
